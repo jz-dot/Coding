@@ -1,21 +1,23 @@
 // ============================================================
 // Main Game Controller
 // Handles menus, input, game loop, high scores, game switching
-// Supports: Tetris, Dr. Mario, Super Ashio Bros. (1P & 2P)
+// Supports: Tetris, Dr. Mario, Super Ashio Bros. 1/2/3 (1P & 2P)
 // ============================================================
 
 (function() {
     'use strict';
 
     // ---- State ----
-    const GAMES = ['tetris', 'drmario', 'mario'];
-    const GAME_LABELS = { tetris: 'TETRIS', drmario: 'DR.MARIO', mario: 'SUPER ASHIO' };
+    const GAMES = ['tetris', 'drmario', 'mario', 'mario2', 'mario3'];
+    const GAME_LABELS = { tetris: 'TETRIS', drmario: 'DR.MARIO', mario: 'SUPER ASHIO', mario2: 'S.ASHIO 2', mario3: 'S.ASHIO 3' };
     let currentGame = 'tetris';
     let gameState = 'title'; // title, options, highscores, playing
     let tetris = new TetrisEngine();
     let drmario = new DrMarioEngine();
     let marioP1 = new SuperMarioEngine();
     let marioP2 = new SuperMarioEngine();
+    let mario2Engine = new SuperMario2Engine();
+    let mario3Engine = new SuperMario3Engine();
     let engine = tetris;
 
     // 2-player mode
@@ -43,7 +45,7 @@
     const nextCtx = nextCanvas.getContext('2d');
 
     // High scores
-    let highScores = { tetris: [], drmario: [], mario: [] };
+    let highScores = { tetris: [], drmario: [], mario: [], mario2: [], mario3: [] };
 
     const MAX_HIGH_SCORES = 10;
     const DEFAULT_SCORES = [
@@ -62,16 +64,20 @@
             if (saved) {
                 highScores = JSON.parse(saved);
                 if (!highScores.mario) highScores.mario = [...DEFAULT_SCORES];
+                if (!highScores.mario2) highScores.mario2 = [...DEFAULT_SCORES];
+                if (!highScores.mario3) highScores.mario3 = [...DEFAULT_SCORES];
             } else {
                 highScores = {
                     tetris: [...DEFAULT_SCORES],
                     drmario: [...DEFAULT_SCORES],
-                    mario: [...DEFAULT_SCORES]
+                    mario: [...DEFAULT_SCORES],
+                    mario2: [...DEFAULT_SCORES],
+                    mario3: [...DEFAULT_SCORES]
                 };
                 saveHighScores();
             }
         } catch(e) {
-            highScores = { tetris: [...DEFAULT_SCORES], drmario: [...DEFAULT_SCORES], mario: [...DEFAULT_SCORES] };
+            highScores = { tetris: [...DEFAULT_SCORES], drmario: [...DEFAULT_SCORES], mario: [...DEFAULT_SCORES], mario2: [...DEFAULT_SCORES], mario3: [...DEFAULT_SCORES] };
         }
     }
 
@@ -129,6 +135,8 @@
         document.getElementById(screenId).classList.add('active');
     }
 
+    function isMarioGame(g) { return g === 'mario' || g === 'mario2' || g === 'mario3'; }
+
     function switchGame(dir) {
         dir = dir || 1;
         const idx = GAMES.indexOf(currentGame);
@@ -141,28 +149,32 @@
         document.getElementById('title-tetris').classList.toggle('active', currentGame === 'tetris');
         document.getElementById('title-drmario').classList.toggle('active', currentGame === 'drmario');
         document.getElementById('title-mario').classList.toggle('active', currentGame === 'mario');
+        document.getElementById('title-mario2').classList.toggle('active', currentGame === 'mario2');
+        document.getElementById('title-mario3').classList.toggle('active', currentGame === 'mario3');
 
         // Toggle options sections
         document.getElementById('tetris-options').style.display = currentGame === 'tetris' ? 'block' : 'none';
         document.getElementById('drmario-options').style.display = currentGame === 'drmario' ? 'block' : 'none';
-        document.getElementById('mario-options').style.display = currentGame === 'mario' ? 'block' : 'none';
+        document.getElementById('mario-options').style.display = isMarioGame(currentGame) ? 'block' : 'none';
 
         // Level option label changes for mario
         const levelRow = document.getElementById('level-display').parentElement.parentElement;
-        levelRow.style.display = currentGame === 'mario' ? 'none' : 'flex';
+        levelRow.style.display = isMarioGame(currentGame) ? 'none' : 'flex';
 
         // Toggle controls hints
-        document.getElementById('controls-hint-puzzle').style.display = currentGame === 'mario' ? 'none' : 'block';
+        document.getElementById('controls-hint-puzzle').style.display = isMarioGame(currentGame) ? 'none' : 'block';
         document.getElementById('controls-hint-mario').style.display = currentGame === 'mario' ? 'block' : 'none';
+        document.getElementById('controls-hint-mario2').style.display = currentGame === 'mario2' ? 'block' : 'none';
+        document.getElementById('controls-hint-mario3').style.display = currentGame === 'mario3' ? 'block' : 'none';
 
         // Toggle start button vs mario player select
-        document.getElementById('btn-start').style.display = currentGame === 'mario' ? 'none' : 'inline-block';
-        document.getElementById('mario-player-select').style.display = currentGame === 'mario' ? 'flex' : 'none';
+        document.getElementById('btn-start').style.display = isMarioGame(currentGame) ? 'none' : 'inline-block';
+        document.getElementById('mario-player-select').style.display = isMarioGame(currentGame) ? 'flex' : 'none';
     }
 
     function setupCanvasForGame() {
         const layout = document.querySelector('.game-layout');
-        if (currentGame === 'mario') {
+        if (isMarioGame(currentGame)) {
             canvas.width = 256;
             canvas.height = 240;
             layout.classList.add('mario-mode');
@@ -224,11 +236,24 @@
                 marioP2.init(startWorld, 2);
             }
 
-            // Play music based on level type
             nesAudio.playMusic('mario', getMarioMusicType());
+        } else if (currentGame === 'mario2') {
+            mario2Engine = new SuperMario2Engine();
+            mario2Engine.lives = startLives;
+            mario2Engine.init(startWorld);
+            engine = mario2Engine;
+            twoPlayer = false;
+            nesAudio.playMusic('mario2', 'CHARSELECT');
+        } else if (currentGame === 'mario3') {
+            mario3Engine = new SuperMario3Engine();
+            mario3Engine.lives = startLives;
+            mario3Engine.init(numPlayers === 2);
+            engine = mario3Engine;
+            twoPlayer = numPlayers === 2;
+            nesAudio.playMusic('mario3', 'MAP');
         }
 
-        if (currentGame !== 'mario') {
+        if (!isMarioGame(currentGame)) {
             updateDisplays();
             document.getElementById('top-score-display').textContent = String(getTopScore()).padStart(6, '0');
             nesAudio.playMusic(currentGame, musicType);
@@ -267,7 +292,7 @@
     }
 
     function updateDisplays() {
-        if (currentGame === 'mario') return; // Mario draws its own HUD
+        if (isMarioGame(currentGame)) return; // Mario games draw their own HUD
 
         document.getElementById('score-display').textContent = String(engine.score).padStart(6, '0');
         document.getElementById('game-level-display').textContent = String(engine.level).padStart(2, '0');
@@ -314,7 +339,7 @@
         while (accumulator >= FRAME_DURATION) {
             accumulator -= FRAME_DURATION;
 
-            // Check mario-specific states BEFORE update
+            // Check mario-specific states BEFORE update (SMB1 only for 2P)
             if (currentGame === 'mario' && twoPlayer) {
                 // Handle 2-player switching on death - before engine respawns
                 if (engine.dead && engine.deathTimer === 1 && !engine.gameOver) {
@@ -328,12 +353,26 @@
 
             if (!engine.paused && !engine.gameOver) {
                 if (currentGame === 'mario') {
-                    // Continuous input for platformer
+                    // Continuous input for platformer (SMB1)
                     engine.inputLeft = keys['ArrowLeft'] || keys['KeyA'];
                     engine.inputRight = keys['ArrowRight'] || keys['KeyD'];
                     engine.inputDown = keys['ArrowDown'] || keys['KeyS'];
                     engine.running = keys['KeyX'] || keys['ShiftLeft'] || keys['ShiftRight'];
                     engine.crouching = engine.inputDown && engine.playerState !== 'small' && engine.grounded;
+                } else if (currentGame === 'mario2') {
+                    // SMB2 continuous input
+                    engine.inputLeft = keys['ArrowLeft'] || keys['KeyA'];
+                    engine.inputRight = keys['ArrowRight'] || keys['KeyD'];
+                    engine.inputDown = keys['ArrowDown'] || keys['KeyS'];
+                    engine.inputRun = keys['KeyX'] || keys['ShiftLeft'] || keys['ShiftRight'];
+                } else if (currentGame === 'mario3') {
+                    // SMB3 continuous input
+                    engine.keys.left = keys['ArrowLeft'] || keys['KeyA'];
+                    engine.keys.right = keys['ArrowRight'] || keys['KeyD'];
+                    engine.keys.down = keys['ArrowDown'] || keys['KeyS'];
+                    engine.keys.up = keys['ArrowUp'] || keys['KeyW'];
+                    engine.keys.run = keys['KeyX'] || keys['ShiftLeft'] || keys['ShiftRight'];
+                    engine.keys.jump = keys['KeyZ'] || keys['Space'];
                 } else {
                     // DAS for puzzle games
                     if (keys['ArrowLeft'] || keys['KeyA']) {
@@ -373,7 +412,7 @@
 
             // Check game over for all games
             if (engine.gameOver && !document.getElementById('gameover-overlay').classList.contains('visible')) {
-                // For 2P mario, both must be game over
+                // For 2P mario (SMB1), both must be game over
                 if (currentGame === 'mario' && twoPlayer) {
                     if (!marioP1.gameOver || !marioP2.gameOver) continue;
                 }
@@ -403,7 +442,7 @@
 
         // Render
         engine.render(ctx, nextCtx);
-        if (currentGame !== 'mario') {
+        if (!isMarioGame(currentGame)) {
             updateDisplays();
         }
 
@@ -419,12 +458,54 @@
         if (keys[code]) return;
         keys[code] = true;
 
+        // Mario2 char select - always handle regardless of game state
+        if (currentGame === 'mario2' && engine.charSelecting) {
+            if (code === 'Digit1') { engine.selectCharacter(0); nesAudio.playMusic('mario2', 'OVERWORLD'); }
+            else if (code === 'Digit2') { engine.selectCharacter(1); nesAudio.playMusic('mario2', 'OVERWORLD'); }
+            else if (code === 'Digit3') { engine.selectCharacter(2); nesAudio.playMusic('mario2', 'OVERWORLD'); }
+            else if (code === 'Digit4') { engine.selectCharacter(3); nesAudio.playMusic('mario2', 'OVERWORLD'); }
+            e.preventDefault();
+            return;
+        }
+
+        // Mario3 worldmap - handle map navigation
+        if (currentGame === 'mario3' && engine.gameState === 'worldmap') {
+            if (code === 'ArrowLeft' || code === 'KeyA') engine.mapMove(-1, 0);
+            else if (code === 'ArrowRight' || code === 'KeyD') engine.mapMove(1, 0);
+            else if (code === 'ArrowUp' || code === 'KeyW') engine.mapMove(0, -1);
+            else if (code === 'ArrowDown' || code === 'KeyS') engine.mapMove(0, 1);
+            else if (code === 'KeyZ' || code === 'Space' || code === 'Enter') {
+                engine.mapSelect();
+                if (engine.gameState === 'playing') {
+                    const theme = engine.levelData?.theme || 'grass';
+                    const musicMap = { fortress: 'FORTRESS', airship: 'AIRSHIP', dark: 'FORTRESS' };
+                    nesAudio.playMusic('mario3', musicMap[theme] || 'OVERWORLD');
+                }
+            }
+            else if (code === 'KeyM') nesAudio.toggleMute();
+            e.preventDefault();
+            return;
+        }
+
+        // Mario3 victory/gameover - restart
+        if (currentGame === 'mario3' && (engine.gameState === 'victory' || engine.gameState === 'gameover')) {
+            if (code === 'Enter' || code === 'Space') {
+                engine.gameOver = true; // trigger gameover overlay
+            }
+            e.preventDefault();
+            return;
+        }
+
         if (engine.gameOver || engine.paused) {
             if (code === 'KeyP' && !engine.gameOver) {
                 engine.paused = false;
                 document.getElementById('pause-overlay').classList.remove('visible');
                 if (currentGame === 'mario') {
                     nesAudio.playMusic('mario', getMarioMusicType());
+                } else if (currentGame === 'mario2') {
+                    nesAudio.playMusic('mario2', engine.levelType === 'underground' ? 'UNDERGROUND' : 'OVERWORLD');
+                } else if (currentGame === 'mario3') {
+                    nesAudio.playMusic('mario3', engine.gameState === 'worldmap' ? 'MAP' : 'OVERWORLD');
                 } else {
                     nesAudio.playMusic(currentGame, musicType);
                 }
@@ -434,7 +515,7 @@
         }
 
         if (currentGame === 'mario') {
-            // Platformer controls
+            // SMB1 platformer controls
             switch(code) {
                 case 'KeyZ':
                 case 'Space':
@@ -448,6 +529,49 @@
                 case 'ArrowDown':
                 case 'KeyS':
                     engine.pressCrouch();
+                    break;
+                case 'KeyP':
+                    engine.paused = true;
+                    document.getElementById('pause-overlay').classList.add('visible');
+                    nesAudio.stopMusic();
+                    break;
+                case 'KeyM':
+                    nesAudio.toggleMute();
+                    break;
+            }
+        } else if (currentGame === 'mario2') {
+            // SMB2 controls
+            switch(code) {
+                case 'KeyZ':
+                case 'Space':
+                    engine.pressJump();
+                    break;
+                case 'KeyX':
+                case 'ShiftLeft':
+                case 'ShiftRight':
+                    engine.pressRun();
+                    break;
+                case 'KeyP':
+                    engine.paused = true;
+                    document.getElementById('pause-overlay').classList.add('visible');
+                    nesAudio.stopMusic();
+                    break;
+                case 'KeyM':
+                    nesAudio.toggleMute();
+                    break;
+            }
+        } else if (currentGame === 'mario3') {
+            // SMB3 controls
+            switch(code) {
+                case 'KeyZ':
+                case 'Space':
+                    engine.pressJump();
+                    break;
+                case 'KeyX':
+                case 'ShiftLeft':
+                case 'ShiftRight':
+                    engine.pressRun();
+                    if (engine.suit === 2 || engine.suit === 6) engine.throwFireball();
                     break;
                 case 'KeyP':
                     engine.paused = true;
@@ -494,15 +618,15 @@
     document.addEventListener('keyup', (e) => {
         keys[e.code] = false;
 
-        if (currentGame === 'mario' && gameState === 'playing') {
+        if (isMarioGame(currentGame) && gameState === 'playing') {
             if (e.code === 'KeyZ' || e.code === 'Space') {
-                engine.releaseJump();
+                if (typeof engine.releaseJump === 'function') engine.releaseJump();
             }
             if (e.code === 'KeyX' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
-                engine.releaseRun();
+                if (typeof engine.releaseRun === 'function') engine.releaseRun();
             }
             if (e.code === 'ArrowDown' || e.code === 'KeyS') {
-                engine.releaseCrouch();
+                if (typeof engine.releaseCrouch === 'function') engine.releaseCrouch();
             }
         }
     });
@@ -621,11 +745,15 @@
         document.getElementById('hs-tetris-tab').classList.toggle('active', game === 'tetris');
         document.getElementById('hs-drmario-tab').classList.toggle('active', game === 'drmario');
         document.getElementById('hs-mario-tab').classList.toggle('active', game === 'mario');
+        document.getElementById('hs-mario2-tab').classList.toggle('active', game === 'mario2');
+        document.getElementById('hs-mario3-tab').classList.toggle('active', game === 'mario3');
     }
 
     document.getElementById('hs-tetris-tab').addEventListener('click', () => setHSTab('tetris'));
     document.getElementById('hs-drmario-tab').addEventListener('click', () => setHSTab('drmario'));
     document.getElementById('hs-mario-tab').addEventListener('click', () => setHSTab('mario'));
+    document.getElementById('hs-mario2-tab').addEventListener('click', () => setHSTab('mario2'));
+    document.getElementById('hs-mario3-tab').addEventListener('click', () => setHSTab('mario3'));
 
     function updateHSTabs() {
         setHSTab(currentGame);
@@ -675,11 +803,7 @@
         if (gameState === 'title') {
             if (e.code === 'Enter' || e.code === 'Space') {
                 e.preventDefault();
-                if (currentGame === 'mario') {
-                    startGame(1); // Default 1P for keyboard start
-                } else {
-                    startGame(1);
-                }
+                startGame(1);
             }
             if (e.code === 'ArrowLeft') {
                 e.preventDefault();

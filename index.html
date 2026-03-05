@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NES Retro Games - Tetris, Dr. Mario & Super Ashio Bros.</title>
+    <title>NES Retro Games - Tetris, Dr. Mario & Super Ashio Bros. 1/2/3</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -38,6 +38,24 @@
            |_|         BROS.
                     </pre>
                 </div>
+                <div id="title-mario2" class="title-logo">
+                    <pre class="title-art mario2-art">
+ ____                         _        _    _
+/ ___| _  _ _ __  ___ _ _    / \  ___ | |_ (_) ___
+\___ \| || | '_ \/ -_) '_|  / _ \(_-&lt;| ' \| |/ _ \
+|___/ \_,_| .__/\___|_|   /_/ \_\/__/|_||_|_|\___/
+           |_|       BROS. 2
+                    </pre>
+                </div>
+                <div id="title-mario3" class="title-logo">
+                    <pre class="title-art mario3-art">
+ ____                         _        _    _
+/ ___| _  _ _ __  ___ _ _    / \  ___ | |_ (_) ___
+\___ \| || | '_ \/ -_) '_|  / _ \(_-&lt;| ' \| |/ _ \
+|___/ \_,_| .__/\___|_|   /_/ \_\/__/|_||_|_|\___/
+           |_|       BROS. 3
+                    </pre>
+                </div>
                 <div class="title-menu">
                     <div class="game-toggle">
                         <button id="toggle-left" class="nes-btn toggle-btn">&lt;</button>
@@ -64,6 +82,18 @@
                         <p>Z OR SPACE = JUMP (HOLD FOR HIGHER)</p>
                         <p>X OR SHIFT = RUN / FIREBALL</p>
                         <p>DOWN = CROUCH / ENTER PIPE &nbsp; P = PAUSE</p>
+                    </div>
+                    <div class="controls-hint" id="controls-hint-mario2" style="display:none;">
+                        <p>ARROW KEYS / WASD TO MOVE</p>
+                        <p>Z OR SPACE = JUMP &nbsp; X = PICK UP / THROW</p>
+                        <p>DOWN = CROUCH / PULL VEGETABLES</p>
+                        <p>P = PAUSE &nbsp; M = MUTE</p>
+                    </div>
+                    <div class="controls-hint" id="controls-hint-mario3" style="display:none;">
+                        <p>ARROW KEYS / WASD TO MOVE</p>
+                        <p>Z OR SPACE = JUMP &nbsp; X = RUN / TAIL / FIREBALL</p>
+                        <p>RUN FULL SPEED + JUMP = FLY (RACCOON/TANOOKI)</p>
+                        <p>P = PAUSE &nbsp; M = MUTE</p>
                     </div>
                 </div>
             </div>
@@ -126,7 +156,9 @@
                 <div class="hs-tabs">
                     <button id="hs-tetris-tab" class="nes-btn hs-tab active">TETRIS</button>
                     <button id="hs-drmario-tab" class="nes-btn hs-tab">DR.MARIO</button>
-                    <button id="hs-mario-tab" class="nes-btn hs-tab">S.ASHIO</button>
+                    <button id="hs-mario-tab" class="nes-btn hs-tab">SMB1</button>
+                    <button id="hs-mario2-tab" class="nes-btn hs-tab">SMB2</button>
+                    <button id="hs-mario3-tab" class="nes-btn hs-tab">SMB3</button>
                 </div>
                 <div id="highscore-list" class="highscore-list"></div>
                 <button id="btn-hs-back" class="nes-btn menu-btn">BACK</button>
@@ -206,6 +238,16 @@
     <script src="mario-levels.js"></script>
     <script src="mario.js"></script>
     <script src="mario-audio.js"></script>
+    <script src="mario2-renderer.js"></script>
+    <script src="mario2-entities.js"></script>
+    <script src="mario2-levels.js"></script>
+    <script src="mario2.js"></script>
+    <script src="mario2-audio.js"></script>
+    <script src="mario3-renderer.js"></script>
+    <script src="mario3-entities.js"></script>
+    <script src="mario3-levels.js"></script>
+    <script src="mario3.js"></script>
+    <script src="mario3-audio.js"></script>
     <script src="game.js"></script>
 </body>
 </html>
