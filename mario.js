@@ -787,14 +787,26 @@ class SuperMarioEngine {
         for (const fb of this.entities) {
             if (fb.type !== 'fireball' || !fb.active) continue;
             for (const e of this.entities) {
-                if (!e.active || !e.isEnemy || e.fireproof) continue;
+                if (!e.active || !e.isEnemy) continue;
                 if (fb.x < e.x + e.width && fb.x + 8 > e.x &&
                     fb.y < e.y + e.height && fb.y + 8 > e.y) {
-                    e.die();
-                    fb.active = false;
-                    this.addScore(200);
-                    this.showScorePopup(e.x, e.y, '200');
-                    nesAudio.playSFX('smb_kick');
+                    if (e.type === 'bowser' && e.hitByFireball) {
+                        // Bowser takes HP damage from fireballs
+                        e.hitByFireball(this);
+                        fb.active = false;
+                        nesAudio.playSFX('smb_kick');
+                    } else if (!e.fireproof) {
+                        e.die();
+                        fb.active = false;
+                        this.addScore(200);
+                        this.showScorePopup(e.x, e.y, '200');
+                        nesAudio.playSFX('smb_kick');
+                    }
+                    // Fireproof enemies (BulletBill, BowserFire, BuzzyBeetle) destroy fireball but survive
+                    else {
+                        fb.active = false;
+                    }
+                    break; // fireball consumed
                 }
             }
         }

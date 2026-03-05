@@ -25,7 +25,11 @@ const MarioEntities = {
             case 'star': return new StarItem(x, y, opts);
             case '1up': return new OneUpMushroom(x, y, opts);
             case 'fireball': return new Fireball(x, y, opts);
-            default: return new Goomba(x, y, opts);
+            case 'hammer': return new Hammer(x, y, opts);
+            case 'bowserFire': return new BowserFire(x, y, opts);
+            default:
+                console.warn('Unknown entity type:', type);
+                return new Goomba(x, y, opts);
         }
     }
 };
@@ -187,7 +191,7 @@ class KoopaTroopa extends MarioEntity {
     }
 
     onActivate() {
-        this.vx = this.direction * -0.5;
+        this.vx = -0.5; // Walk left on activation (like original SMB)
     }
 
     update(engine) {
@@ -197,9 +201,9 @@ class KoopaTroopa extends MarioEntity {
         if (this.shellKickTimer > 0) this.shellKickTimer--;
 
         if (this.inShell && this.shellMoving) {
-            // Moving shell kills other enemies
+            // Moving shell kills other enemies (including other shells)
             for (const e of engine.entities) {
-                if (e !== this && e.active && e.isEnemy && !e.inShell) {
+                if (e !== this && e.active && e.isEnemy) {
                     if (this.x < e.x + e.width && this.x + this.width > e.x &&
                         this.y < e.y + e.height && this.y + this.height > e.y) {
                         e.die();
@@ -340,6 +344,7 @@ class BuzzyBeetle extends MarioEntity {
         this.fireproof = true;
         this.inShell = false;
         this.shellMoving = false;
+        this.shellKickTimer = 0;
         this.vx = -0.5;
     }
 
@@ -348,6 +353,23 @@ class BuzzyBeetle extends MarioEntity {
     update(engine) {
         super.update(engine);
         if (!this.activated) return;
+
+        if (this.shellKickTimer > 0) this.shellKickTimer--;
+
+        if (this.inShell && this.shellMoving) {
+            // Moving shell kills other enemies
+            for (const e of engine.entities) {
+                if (e !== this && e.active && e.isEnemy) {
+                    if (this.x < e.x + e.width && this.x + this.width > e.x &&
+                        this.y < e.y + e.height && this.y + this.height > e.y) {
+                        e.die();
+                        engine.addScore(500);
+                        engine.showScorePopup(e.x, e.y, '500');
+                    }
+                }
+            }
+        }
+
         this.applyMovement(engine);
         this.applyGravity(engine);
     }
@@ -362,6 +384,7 @@ class BuzzyBeetle extends MarioEntity {
             this.shellMoving = true;
             this.isDangerous = true;
             this.vx = engine.playerX < this.x ? 3 : -3;
+            this.shellKickTimer = 10;
             nesAudio.playSFX('smb_kick');
         } else {
             this.shellMoving = false;
@@ -383,6 +406,7 @@ class BulletBill extends MarioEntity {
         this.isEnemy = true;
         this.canBeStomp = true;
         this.isDangerous = true;
+        this.fireproof = true;
         this.direction = opts.dir || -1;
         this.vx = this.direction * 2;
     }
@@ -666,6 +690,7 @@ class Bowser extends MarioEntity {
         this.isEnemy = true;
         this.canBeStomp = false;
         this.isDangerous = true;
+        this.fireproof = true; // Bowser takes HP damage from fireballs instead
         this.width = 32;
         this.height = 32;
         this.hp = opts.hp || 5;
@@ -673,28 +698,51 @@ class Bowser extends MarioEntity {
         this.jumpTimer = 0;
         this.moveTimer = 0;
         this.vx = -0.3;
+        this.startX = x; // Track patrol bounds
+        this.hitFlash = 0;
     }
 
     onActivate() {
         this.fireTimer = 90;
         this.jumpTimer = 150;
         this.moveTimer = 60;
+        this.startX = this.x;
+    }
+
+    hitByFireball(engine) {
+        this.hp--;
+        this.hitFlash = 10;
+        if (this.hp <= 0) {
+            this.die();
+            engine.addScore(5000);
+            engine.showScorePopup(this.x, this.y, '5000');
+        }
     }
 
     die() {
-        this.active = false;
-        this.deathTimer = 30;
+        this.deathTimer = 60;
+        this.isDangerous = false;
+        this.vy = -3;
+        // Keep active briefly for death animation
     }
 
     update(engine) {
-        if (!this.active) {
-            if (this.deathTimer > 0) this.deathTimer--;
+        if (this.deathTimer > 0) {
+            this.deathTimer--;
+            this.vy += 0.3;
+            this.y += this.vy;
+            if (this.deathTimer <= 0) {
+                this.active = false;
+            }
             return;
         }
+        if (!this.active) return;
         super.update(engine);
         if (!this.activated) return;
 
-        // Movement
+        if (this.hitFlash > 0) this.hitFlash--;
+
+        // Movement - patrol within bounds
         this.moveTimer--;
         if (this.moveTimer <= 0) {
             this.vx = -this.vx;
@@ -702,6 +750,10 @@ class Bowser extends MarioEntity {
         }
 
         this.x += this.vx;
+        // Keep Bowser in patrol area (startX +/- 48 pixels)
+        if (this.x < this.startX - 48) { this.x = this.startX - 48; this.vx = Math.abs(this.vx); }
+        if (this.x > this.startX + 48) { this.x = this.startX + 48; this.vx = -Math.abs(this.vx); }
+
         this.applyGravity(engine);
 
         // Jump
@@ -722,7 +774,9 @@ class Bowser extends MarioEntity {
     }
 
     render(ctx, sx, sy, frame) {
-        if (!this.active) return;
+        if (!this.active && this.deathTimer <= 0) return;
+        // Flash when hit
+        if (this.hitFlash > 0 && Math.floor(this.hitFlash / 2) % 2 === 0) return;
         MarioRenderer.drawBowser(ctx, sx, sy, frame);
     }
 }
@@ -735,6 +789,7 @@ class BowserFire extends MarioEntity {
         this.isEnemy = true;
         this.isDangerous = true;
         this.canBeStomp = false;
+        this.fireproof = true;
         this.width = 24;
         this.height = 8;
         this.vx = -2;
@@ -908,6 +963,7 @@ class StarItem extends MarioEntity {
         this.applyMovement(engine);
         // Bouncing star
         this.vy += 0.2;
+        if (this.vy > 4) this.vy = 4;
         this.y += this.vy;
         const T = 16;
         const feetRow = Math.floor((this.y + this.height) / T);
