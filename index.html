@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NES Tetris & Dr. Mario</title>
+    <title>NES Retro Games - Tetris, Dr. Mario & Super Ashio Bros.</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -29,22 +29,41 @@
 |____/|_|(_) |_|  |_|\__,_|_|  |_|\___/
                     </pre>
                 </div>
+                <div id="title-mario" class="title-logo">
+                    <pre class="title-art mario-art">
+ ____                         _        _    _
+/ ___| _  _ _ __  ___ _ _    / \  ___ | |_ (_) ___
+\___ \| || | '_ \/ -_) '_|  / _ \(_-&lt;| ' \| |/ _ \
+|___/ \_,_| .__/\___|_|   /_/ \_\/__/|_||_|_|\___/
+           |_|         BROS.
+                    </pre>
+                </div>
                 <div class="title-menu">
                     <div class="game-toggle">
                         <button id="toggle-left" class="nes-btn toggle-btn">&lt;</button>
                         <span id="current-game-label" class="game-label">TETRIS</span>
                         <button id="toggle-right" class="nes-btn toggle-btn">&gt;</button>
                     </div>
-                    <div class="menu-options">
+                    <div class="menu-options" id="main-menu-buttons">
                         <button id="btn-start" class="nes-btn menu-btn">START</button>
+                        <div class="mario-player-select" id="mario-player-select" style="display:none;">
+                            <button id="btn-1player" class="nes-btn menu-btn">1 PLAYER GAME</button>
+                            <button id="btn-2player" class="nes-btn menu-btn">2 PLAYER GAME</button>
+                        </div>
                         <button id="btn-high-scores" class="nes-btn menu-btn">HIGH SCORES</button>
                         <button id="btn-options" class="nes-btn menu-btn">OPTIONS</button>
                     </div>
-                    <div class="controls-hint">
+                    <div class="controls-hint" id="controls-hint-puzzle">
                         <p>ARROW KEYS / WASD TO MOVE</p>
                         <p>Z = ROTATE LEFT &nbsp; X = ROTATE RIGHT</p>
                         <p>DOWN = SOFT DROP &nbsp; SPACE = HARD DROP</p>
                         <p>P = PAUSE &nbsp; M = MUTE</p>
+                    </div>
+                    <div class="controls-hint" id="controls-hint-mario" style="display:none;">
+                        <p>ARROW KEYS / WASD TO MOVE</p>
+                        <p>Z OR SPACE = JUMP (HOLD FOR HIGHER)</p>
+                        <p>X OR SHIFT = RUN / FIREBALL</p>
+                        <p>DOWN = CROUCH / ENTER PIPE &nbsp; P = PAUSE</p>
                     </div>
                 </div>
             </div>
@@ -66,6 +85,20 @@
                         <button class="nes-btn opt-btn" id="height-down">&lt;</button>
                         <span id="height-display" class="option-value">0</span>
                         <button class="nes-btn opt-btn" id="height-up">&gt;</button>
+                    </div>
+                </div>
+                <div id="mario-options" style="display:none;">
+                    <div class="option-row">
+                        <span class="option-label">WORLD:</span>
+                        <button class="nes-btn opt-btn" id="world-down">&lt;</button>
+                        <span id="world-display" class="option-value">1</span>
+                        <button class="nes-btn opt-btn" id="world-up">&gt;</button>
+                    </div>
+                    <div class="option-row">
+                        <span class="option-label">LIVES:</span>
+                        <button class="nes-btn opt-btn" id="lives-down">&lt;</button>
+                        <span id="lives-display" class="option-value">3</span>
+                        <button class="nes-btn opt-btn" id="lives-up">&gt;</button>
                     </div>
                 </div>
                 <div id="drmario-options" style="display:none;">
@@ -93,6 +126,7 @@
                 <div class="hs-tabs">
                     <button id="hs-tetris-tab" class="nes-btn hs-tab active">TETRIS</button>
                     <button id="hs-drmario-tab" class="nes-btn hs-tab">DR.MARIO</button>
+                    <button id="hs-mario-tab" class="nes-btn hs-tab">S.ASHIO</button>
                 </div>
                 <div id="highscore-list" class="highscore-list"></div>
                 <button id="btn-hs-back" class="nes-btn menu-btn">BACK</button>
@@ -167,6 +201,11 @@
     <script src="audio.js"></script>
     <script src="tetris.js"></script>
     <script src="drmario.js"></script>
+    <script src="mario-renderer.js"></script>
+    <script src="mario-entities.js"></script>
+    <script src="mario-levels.js"></script>
+    <script src="mario.js"></script>
+    <script src="mario-audio.js"></script>
     <script src="game.js"></script>
 </body>
 </html>

@@ -341,6 +341,51 @@ body {
     outline: 2px solid #FCF357;
 }
 
+/* Super Ashio Bros. - Title Art */
+.mario-art {
+    color: #D82800;
+    text-shadow: 2px 2px 0 #600;
+}
+
+.mario-player-select {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+}
+
+/* Mario landscape mode */
+.game-layout.mario-mode {
+    flex-direction: column;
+    align-items: center;
+}
+
+.game-layout.mario-mode .side-panel {
+    display: none;
+}
+
+.game-layout.mario-mode .game-board-container {
+    padding: 2px;
+}
+
+.game-layout.mario-mode #game-canvas {
+    width: 512px;
+    height: 480px;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+}
+
+.game-label {
+    font-size: 16px;
+    min-width: 180px;
+}
+
+.hs-tab {
+    font-size: 7px !important;
+    padding: 5px 8px !important;
+}
+
 /* Responsive */
 @media (max-width: 640px) {
     .side-panel {
