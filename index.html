@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NES Tetris & Dr. Mario</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Title Screen -->
+        <div id="title-screen" class="screen active">
+            <div class="nes-border title-container">
+                <div id="title-tetris" class="title-logo active">
+                    <pre class="title-art">
+ _____ _____ _____ ____  ___ ____
+|_   _| ____|_   _|  _ \|_ _/ ___|
+  | | |  _|   | | | |_) || |\___ \
+  | | | |___  | | |  _ < | | ___) |
+  |_| |_____| |_| |_| \_\___|____/
+                    </pre>
+                </div>
+                <div id="title-drmario" class="title-logo">
+                    <pre class="title-art dr-mario-art">
+ ____         __  __            _
+|  _ \ _ __  |  \/  | __ _ _ __(_) ___
+| | | | '__| | |\/| |/ _` | '__| |/ _ \
+| |_| | | _  | |  | | (_| | |  | | (_) |
+|____/|_|(_) |_|  |_|\__,_|_|  |_|\___/
+                    </pre>
+                </div>
+                <div class="title-menu">
+                    <div class="game-toggle">
+                        <button id="toggle-left" class="nes-btn toggle-btn">&lt;</button>
+                        <span id="current-game-label" class="game-label">TETRIS</span>
+                        <button id="toggle-right" class="nes-btn toggle-btn">&gt;</button>
+                    </div>
+                    <div class="menu-options">
+                        <button id="btn-start" class="nes-btn menu-btn">START</button>
+                        <button id="btn-high-scores" class="nes-btn menu-btn">HIGH SCORES</button>
+                        <button id="btn-options" class="nes-btn menu-btn">OPTIONS</button>
+                    </div>
+                    <div class="controls-hint">
+                        <p>ARROW KEYS / WASD TO MOVE</p>
+                        <p>Z = ROTATE LEFT &nbsp; X = ROTATE RIGHT</p>
+                        <p>DOWN = SOFT DROP &nbsp; SPACE = HARD DROP</p>
+                        <p>P = PAUSE &nbsp; M = MUTE</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Options Screen -->
+        <div id="options-screen" class="screen">
+            <div class="nes-border options-container">
+                <h2 class="screen-title">OPTIONS</h2>
+                <div class="option-row">
+                    <span class="option-label">LEVEL:</span>
+                    <button class="nes-btn opt-btn" id="level-down">&lt;</button>
+                    <span id="level-display" class="option-value">00</span>
+                    <button class="nes-btn opt-btn" id="level-up">&gt;</button>
+                </div>
+                <div id="tetris-options">
+                    <div class="option-row">
+                        <span class="option-label">HEIGHT:</span>
+                        <button class="nes-btn opt-btn" id="height-down">&lt;</button>
+                        <span id="height-display" class="option-value">0</span>
+                        <button class="nes-btn opt-btn" id="height-up">&gt;</button>
+                    </div>
+                </div>
+                <div id="drmario-options" style="display:none;">
+                    <div class="option-row">
+                        <span class="option-label">SPEED:</span>
+                        <button class="nes-btn opt-btn" id="speed-down">&lt;</button>
+                        <span id="speed-display" class="option-value">MED</span>
+                        <button class="nes-btn opt-btn" id="speed-up">&gt;</button>
+                    </div>
+                </div>
+                <div class="option-row">
+                    <span class="option-label">MUSIC:</span>
+                    <button class="nes-btn opt-btn" id="music-down">&lt;</button>
+                    <span id="music-display" class="option-value">A</span>
+                    <button class="nes-btn opt-btn" id="music-up">&gt;</button>
+                </div>
+                <button id="btn-options-back" class="nes-btn menu-btn">BACK</button>
+            </div>
+        </div>
+
+        <!-- High Score Screen -->
+        <div id="highscore-screen" class="screen">
+            <div class="nes-border highscore-container">
+                <h2 class="screen-title">HIGH SCORES</h2>
+                <div class="hs-tabs">
+                    <button id="hs-tetris-tab" class="nes-btn hs-tab active">TETRIS</button>
+                    <button id="hs-drmario-tab" class="nes-btn hs-tab">DR.MARIO</button>
+                </div>
+                <div id="highscore-list" class="highscore-list"></div>
+                <button id="btn-hs-back" class="nes-btn menu-btn">BACK</button>
+            </div>
+        </div>
+
+        <!-- Game Screen -->
+        <div id="game-screen" class="screen">
+            <div class="game-layout">
+                <!-- Left Panel -->
+                <div class="side-panel left-panel">
+                    <div class="nes-border info-box">
+                        <div class="stat-label">SCORE</div>
+                        <div id="score-display" class="stat-value">000000</div>
+                    </div>
+                    <div class="nes-border info-box">
+                        <div class="stat-label">LEVEL</div>
+                        <div id="game-level-display" class="stat-value">00</div>
+                    </div>
+                    <div class="nes-border info-box">
+                        <div class="stat-label">LINES</div>
+                        <div id="lines-display" class="stat-value">000</div>
+                    </div>
+                    <div id="virus-count-box" class="nes-border info-box" style="display:none;">
+                        <div class="stat-label">VIRUS</div>
+                        <div id="virus-display" class="stat-value">00</div>
+                    </div>
+                    <div class="nes-border info-box stats-box" id="tetris-stats">
+                        <div class="stat-label">STATISTICS</div>
+                        <div id="piece-stats"></div>
+                    </div>
+                </div>
+
+                <!-- Main Game Board -->
+                <div class="nes-border game-board-container">
+                    <canvas id="game-canvas" width="200" height="360"></canvas>
+                    <div id="pause-overlay" class="overlay">PAUSED</div>
+                    <div id="gameover-overlay" class="overlay">
+                        <div>GAME OVER</div>
+                        <div id="name-entry" class="name-entry" style="display:none;">
+                            <div>NEW HIGH SCORE!</div>
+                            <input id="name-input" type="text" maxlength="6" value="AAA" class="name-input">
+                            <button id="btn-submit-score" class="nes-btn">OK</button>
+                        </div>
+                        <button id="btn-retry" class="nes-btn retry-btn">RETRY</button>
+                        <button id="btn-back-menu" class="nes-btn retry-btn">MENU</button>
+                    </div>
+                    <div id="clear-overlay" class="overlay win-overlay" style="display:none;">
+                        <div>STAGE CLEAR!</div>
+                        <button id="btn-next-level" class="nes-btn retry-btn">NEXT LEVEL</button>
+                    </div>
+                </div>
+
+                <!-- Right Panel -->
+                <div class="side-panel right-panel">
+                    <div class="nes-border info-box">
+                        <div class="stat-label">NEXT</div>
+                        <canvas id="next-canvas" width="80" height="80"></canvas>
+                    </div>
+                    <div class="nes-border info-box">
+                        <div class="stat-label" id="game-type-label">TETRIS</div>
+                    </div>
+                    <div class="nes-border info-box">
+                        <div class="stat-label">TOP</div>
+                        <div id="top-score-display" class="stat-value">000000</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="audio.js"></script>
+    <script src="tetris.js"></script>
+    <script src="drmario.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>
