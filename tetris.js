@@ -494,13 +494,20 @@ class TetrisEngine {
             }
         }
 
-        // Line clear animation (flash effect)
+        // NES line clear animation: columns clear from center outward
         if (this.lineClearing) {
-            const flash = Math.floor(this.lineClearFrames / 3) % 2 === 0;
+            const progress = 1 - (this.lineClearFrames / this.LINE_CLEAR_FRAMES);
+            const colsCleared = Math.floor(progress * (this.COLS / 2)); // 0 to 5
             for (const row of this.clearingLines) {
                 const drawY = row - this.HIDDEN_ROWS;
-                ctx.fillStyle = flash ? '#FCFCFC' : '#0C0C0C';
-                ctx.fillRect(0, drawY * cs, this.COLS * cs, cs);
+                // Clear from center outward
+                for (let i = 0; i < colsCleared; i++) {
+                    const leftCol = (this.COLS / 2) - 1 - i;
+                    const rightCol = (this.COLS / 2) + i;
+                    ctx.fillStyle = '#0C0C0C';
+                    ctx.fillRect(leftCol * cs, drawY * cs, cs, cs);
+                    ctx.fillRect(rightCol * cs, drawY * cs, cs, cs);
+                }
             }
         }
 
@@ -509,26 +516,7 @@ class TetrisEngine {
             const color = this.PIECES[this.currentPiece].color;
             const blocks = this.getBlocks(this.pieceX, this.pieceY, this.rotation);
 
-            // Ghost piece
-            let ghostY = this.pieceY;
-            while (this.isValidPosition(this.pieceX, ghostY + 1, this.rotation)) {
-                ghostY++;
-            }
-            if (ghostY !== this.pieceY) {
-                const ghostBlocks = this.getBlocks(this.pieceX, ghostY, this.rotation);
-                for (const [x, y] of ghostBlocks) {
-                    if (y >= this.HIDDEN_ROWS) {
-                        const drawY = y - this.HIDDEN_ROWS;
-                        ctx.fillStyle = 'rgba(255,255,255,0.1)';
-                        ctx.fillRect(x * cs + 1, drawY * cs + 1, cs - 2, cs - 2);
-                        ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-                        ctx.lineWidth = 1;
-                        ctx.strokeRect(x * cs + 1, drawY * cs + 1, cs - 2, cs - 2);
-                    }
-                }
-            }
-
-            // Active piece
+            // NES Tetris has no ghost piece — active piece only
             for (const [x, y] of blocks) {
                 if (y >= this.HIDDEN_ROWS) {
                     this.drawBlock(ctx, x, y - this.HIDDEN_ROWS, color);

@@ -202,11 +202,35 @@
 
     // ---- Game Start / Stop ----
 
+    function returnToMenu() {
+        nesAudio.stopMusic();
+        hideOverlays();
+        document.getElementById('top-bar').style.display = 'none';
+        document.getElementById('exit-modal').style.display = 'none';
+        document.getElementById('game-screen').classList.remove('game-playing');
+        // Restore canvas for title screen
+        canvas.width = 200;
+        canvas.height = 360;
+        canvas.style.width = '';
+        canvas.style.height = '';
+        const layout = document.querySelector('.game-layout');
+        layout.classList.remove('mario-mode');
+        document.querySelector('.left-panel').style.display = '';
+        document.querySelector('.right-panel').style.display = '';
+        showScreen('title-screen');
+        gameState = 'title';
+    }
+
     function startGame(numPlayers) {
         nesAudio.init();
         showScreen('game-screen');
+        document.getElementById('game-screen').classList.add('game-playing');
         gameState = 'playing';
         setupCanvasForGame();
+
+        // Show top bar with game name
+        document.getElementById('top-bar').style.display = 'flex';
+        document.getElementById('top-bar-game-name').textContent = GAME_LABELS[currentGame];
 
         document.getElementById('game-type-label').textContent = GAME_LABELS[currentGame];
 
@@ -776,19 +800,42 @@
     });
 
     document.getElementById('btn-back-menu').addEventListener('click', () => {
-        nesAudio.stopMusic();
-        hideOverlays();
-        // Restore canvas for title screen
-        canvas.width = 200;
-        canvas.height = 360;
-        canvas.style.width = '';
-        canvas.style.height = '';
-        const layout = document.querySelector('.game-layout');
-        layout.classList.remove('mario-mode');
-        document.querySelector('.left-panel').style.display = '';
-        document.querySelector('.right-panel').style.display = '';
-        showScreen('title-screen');
-        gameState = 'title';
+        returnToMenu();
+    });
+
+    // In-game menu button -> show exit confirmation
+    document.getElementById('btn-menu-ingame').addEventListener('click', () => {
+        if (gameState !== 'playing') return;
+        // Pause the game
+        if (!engine.paused && !engine.gameOver) {
+            engine.paused = true;
+            nesAudio.stopMusic();
+        }
+        document.getElementById('exit-modal').style.display = 'flex';
+    });
+
+    // Exit confirmation: YES
+    document.getElementById('btn-exit-yes').addEventListener('click', () => {
+        returnToMenu();
+    });
+
+    // Exit confirmation: CANCEL
+    document.getElementById('btn-exit-no').addEventListener('click', () => {
+        document.getElementById('exit-modal').style.display = 'none';
+        // Resume game if it was paused by the menu button
+        if (engine.paused && !engine.gameOver) {
+            engine.paused = false;
+            document.getElementById('pause-overlay').classList.remove('visible');
+            if (currentGame === 'mario') {
+                nesAudio.playMusic('mario', getMarioMusicType());
+            } else if (currentGame === 'mario2') {
+                nesAudio.playMusic('mario2', engine.levelType === 'underground' ? 'UNDERGROUND' : 'OVERWORLD');
+            } else if (currentGame === 'mario3') {
+                nesAudio.playMusic('mario3', engine.gameState === 'worldmap' ? 'MAP' : 'OVERWORLD');
+            } else {
+                nesAudio.playMusic(currentGame, musicType);
+            }
+        }
     });
 
     // Dr. Mario stage clear
