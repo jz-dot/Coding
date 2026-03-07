@@ -7,8 +7,6 @@ class DrMarioEngine {
     constructor() {
         this.COLS = 8;
         this.ROWS = 16;
-        this.CELL_SIZE = 20;
-
         // Three colors
         this.COLORS = ['red', 'yellow', 'blue'];
 
@@ -62,7 +60,7 @@ class DrMarioEngine {
 
         this.pillX = 0;
         this.pillY = 0;
-        this.pillRotation = 0; // 0=horiz, 1=vert, 2=horiz-flip, 3=vert-flip
+        this.pillRotation = 0; // 0=horiz, 1=vert (NES only has 2 states)
         this.pillColors = [null, null];
         this.nextPillColors = [null, null];
         this.hasPill = false;
@@ -84,6 +82,10 @@ class DrMarioEngine {
 
         this.ARE_FRAMES = 15;
         this.CLEAR_ANIM_FRAMES = 18;
+        this.softDropping = false;
+        this.stageClearAnimFrames = 0;
+        this.stageClearRow = 0;
+        this.autoAdvanceDelay = 0;
     }
 
     init(startLevel, speedSetting) {
@@ -93,14 +95,20 @@ class DrMarioEngine {
         this.speedSetting = speedSetting;
 
         switch (speedSetting) {
-            case 0: this.speed = this.SPEED_LOW; break;
-            case 1: this.speed = this.SPEED_MED; break;
-            case 2: this.speed = this.SPEED_HI; break;
+            case 0: this.baseSpeed = this.SPEED_LOW; break;
+            case 1: this.baseSpeed = this.SPEED_MED; break;
+            case 2: this.baseSpeed = this.SPEED_HI; break;
         }
+        this.recalcSpeed();
 
+        this.speed = this.baseSpeed; // ensure speed is set before virus placement
         this.placeViruses();
         this.nextPillColors = this.randomPillColors();
         this.spawnPill();
+    }
+
+    recalcSpeed() {
+        this.speed = Math.max(5, this.baseSpeed - this.level * 2);
     }
 
     placeViruses() {
@@ -108,7 +116,8 @@ class DrMarioEngine {
         this.initialVirusCount = numViruses;
         this.virusCount = numViruses;
 
-        const minRow = Math.max(4, 16 - Math.floor(this.level / 2) - 8);
+        // NES-authentic: viruses restricted to lower rows at low levels
+        const minRow = Math.max(2, this.ROWS - 5 - Math.floor(this.level * 0.6));
 
         let placed = 0;
         let attempts = 0;
@@ -188,13 +197,8 @@ class DrMarioEngine {
         py = py !== undefined ? py : this.pillY;
         rot = rot !== undefined ? rot : this.pillRotation;
 
-        switch (rot) {
-            case 0: return [[px, py], [px + 1, py]];       // horizontal
-            case 1: return [[px, py - 1], [px, py]];        // vertical
-            case 2: return [[px + 1, py], [px, py]];        // h-flipped
-            case 3: return [[px, py], [px, py - 1]];        // v-flipped
-        }
-        return [[px, py], [px + 1, py]];
+        if (rot === 0) return [[px, py], [px + 1, py]];       // horizontal
+        else return [[px, py - 1], [px, py]];               // vertical
     }
 
     isValidPillPos(px, py, rot) {
@@ -226,45 +230,11 @@ class DrMarioEngine {
         return false;
     }
 
+    // NES Dr. Mario: 2 rotation states, no wall kicks
     rotateClockwise() {
         if (!this.hasPill || this.state !== 'falling' || this.gameOver || this.paused) return false;
-        const newRot = (this.pillRotation + 1) % 4;
+        const newRot = this.pillRotation === 0 ? 1 : 0;
         if (this.isValidPillPos(this.pillX, this.pillY, newRot)) {
-            this.pillRotation = newRot;
-            nesAudio.playSFX('rotate');
-            return true;
-        }
-        if (this.isValidPillPos(this.pillX - 1, this.pillY, newRot)) {
-            this.pillX--;
-            this.pillRotation = newRot;
-            nesAudio.playSFX('rotate');
-            return true;
-        }
-        if (this.isValidPillPos(this.pillX + 1, this.pillY, newRot)) {
-            this.pillX++;
-            this.pillRotation = newRot;
-            nesAudio.playSFX('rotate');
-            return true;
-        }
-        return false;
-    }
-
-    rotateCounterClockwise() {
-        if (!this.hasPill || this.state !== 'falling' || this.gameOver || this.paused) return false;
-        const newRot = (this.pillRotation + 3) % 4;
-        if (this.isValidPillPos(this.pillX, this.pillY, newRot)) {
-            this.pillRotation = newRot;
-            nesAudio.playSFX('rotate');
-            return true;
-        }
-        if (this.isValidPillPos(this.pillX - 1, this.pillY, newRot)) {
-            this.pillX--;
-            this.pillRotation = newRot;
-            nesAudio.playSFX('rotate');
-            return true;
-        }
-        if (this.isValidPillPos(this.pillX + 1, this.pillY, newRot)) {
-            this.pillX++;
             this.pillRotation = newRot;
             nesAudio.playSFX('rotate');
             return true;
@@ -282,34 +252,22 @@ class DrMarioEngine {
         return false;
     }
 
-    hardDrop() {
-        if (!this.hasPill || this.state !== 'falling' || this.gameOver || this.paused) return false;
-        while (this.isValidPillPos(this.pillX, this.pillY + 1, this.pillRotation)) {
-            this.pillY++;
-        }
-        this.lockPill();
-        nesAudio.playSFX('drop');
-        return true;
-    }
+    // NES Dr. Mario has no hard drop
 
     lockPill() {
         if (!this.hasPill) return;
         const cells = this.getPillCells();
         const colors = this.getPillColorAssignment();
-        const isHoriz = this.pillRotation === 0 || this.pillRotation === 2;
+        const isHoriz = this.pillRotation === 0;
 
         for (let i = 0; i < cells.length; i++) {
             const [x, y] = cells[i];
             if (y >= 0 && y < this.ROWS && x >= 0 && x < this.COLS) {
-                // Determine connection direction for capsule rendering
                 let dir;
                 if (isHoriz) {
                     dir = (i === 0) ? 'right' : 'left';
-                    // Account for flipped rotation
-                    if (this.pillRotation === 2) dir = (i === 0) ? 'left' : 'right';
                 } else {
                     dir = (i === 0) ? 'down' : 'up';
-                    if (this.pillRotation === 3) dir = (i === 0) ? 'up' : 'down';
                 }
                 // For horizontal: cell[0] connects right, cell[1] connects left
                 // But getPillCells for rot=0 returns [left,right], so cell[0]'s partner is to right
@@ -323,13 +281,7 @@ class DrMarioEngine {
     }
 
     getPillColorAssignment() {
-        switch (this.pillRotation) {
-            case 0: return [this.pillColors[0], this.pillColors[1]];
-            case 1: return [this.pillColors[0], this.pillColors[1]];
-            case 2: return [this.pillColors[1], this.pillColors[0]];
-            case 3: return [this.pillColors[1], this.pillColors[0]];
-        }
-        return this.pillColors;
+        return [this.pillColors[0], this.pillColors[1]];
     }
 
     checkMatches() {
@@ -444,8 +396,9 @@ class DrMarioEngine {
         this.clearingCells = [];
 
         if (this.virusCount <= 0) {
-            this.stageClear = true;
-            this.state = 'clear';
+            this.state = 'stageClearAnim';
+            this.stageClearRow = this.ROWS - 1;
+            this.stageClearAnimFrames = 2;
             nesAudio.playSFX('stage_clear');
             return;
         }
@@ -503,7 +456,15 @@ class DrMarioEngine {
     }
 
     update() {
-        if (this.gameOver || this.paused || this.stageClear) return;
+        if (this.gameOver || this.paused) return;
+        if (this.stageClear) {
+            // Auto-advance to next level after delay
+            this.autoAdvanceDelay--;
+            if (this.autoAdvanceDelay <= 0) {
+                this.init(this.level + 1, this.speedSetting);
+            }
+            return;
+        }
 
         this.frameCount++;
 
@@ -518,7 +479,8 @@ class DrMarioEngine {
             case 'falling':
                 if (!this.hasPill) break;
                 this.gravityCounter++;
-                if (this.gravityCounter >= this.speed) {
+                const dropSpeed = this.softDropping ? Math.min(2, this.speed) : this.speed;
+                if (this.gravityCounter >= dropSpeed) {
                     this.gravityCounter = 0;
                     if (this.isValidPillPos(this.pillX, this.pillY + 1, this.pillRotation)) {
                         this.pillY++;
@@ -550,7 +512,29 @@ class DrMarioEngine {
                     }
                 }
                 break;
+
+            case 'stageClearAnim':
+                this.stageClearAnimFrames--;
+                if (this.stageClearAnimFrames <= 0) {
+                    // Clear one row at a time from bottom up
+                    for (let c = 0; c < this.COLS; c++) {
+                        this.board[this.stageClearRow][c] = null;
+                    }
+                    this.stageClearRow--;
+                    if (this.stageClearRow < 0) {
+                        this.stageClear = true;
+                        this.state = 'clear';
+                        this.autoAdvanceDelay = 120; // ~2 seconds
+                    } else {
+                        this.stageClearAnimFrames = 2;
+                    }
+                }
+                break;
         }
+    }
+
+    startGame(startLevel, speedSetting) {
+        this.init(startLevel, speedSetting);
     }
 
     handleDAS(direction) {
@@ -634,7 +618,7 @@ class DrMarioEngine {
         if (this.hasPill && this.state === 'falling') {
             const cells = this.getPillCells();
             const colors = this.getPillColorAssignment();
-            const isHoriz = this.pillRotation === 0 || this.pillRotation === 2;
+            const isHoriz = this.pillRotation === 0;
 
             for (let i = 0; i < cells.length; i++) {
                 const [x, y] = cells[i];
@@ -643,11 +627,9 @@ class DrMarioEngine {
                     const py = oy + y * cs;
                     let dir;
                     if (isHoriz) {
-                        if (this.pillRotation === 0) dir = (i === 0) ? 'right' : 'left';
-                        else dir = (i === 0) ? 'left' : 'right';
+                        dir = (i === 0) ? 'right' : 'left';
                     } else {
-                        if (this.pillRotation === 1) dir = (i === 0) ? 'down' : 'up';
-                        else dir = (i === 0) ? 'up' : 'down';
+                        dir = (i === 0) ? 'down' : 'up';
                     }
                     this.drawPillHalf(ctx, px, py, cs, colors[i], dir);
                 }

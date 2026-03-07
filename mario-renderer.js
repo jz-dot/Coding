@@ -104,12 +104,14 @@ const MarioRenderer = {
     _drawSmallSprite(ctx, x, y, p, frame, dir) {
         // dir: 1 = right, -1 = left
         const d = dir === -1;
+        // BUG FIX #2: Offset sprite to sit at bottom of 16px hitbox (sprite is ~10 rows drawn, hitbox is 16)
+        const yOff = y + 6;
 
         // Standing/running frames
         const drawPx = (px, py, color) => {
             const ax = d ? x + 15 - px : x + px;
             ctx.fillStyle = color;
-            ctx.fillRect(ax, y + py, 1, 1);
+            ctx.fillRect(ax, yOff + py, 1, 1);
         };
 
         // Hair/hat (rows 0-4)
@@ -243,7 +245,8 @@ const MarioRenderer = {
     },
 
     _drawBigSprite(ctx, x, y, p, frame, flip, drawPx) {
-        // Hair (rows 0-5)
+        // BUG FIX #1: Full 28-row Big Mario sprite (was only 16 rows)
+        // Rows 0-3: Hat/hair top
         for (let i = 4; i <= 8; i++) drawPx(i, 0, p.hair);
         for (let i = 3; i <= 11; i++) drawPx(i, 1, p.hair);
         for (let i = 3; i <= 12; i++) drawPx(i, 2, p.hair);
@@ -283,8 +286,7 @@ const MarioRenderer = {
 
         for (let i = 5; i <= 9; i++) drawPx(i, 7, p.skin);
 
-        // Body rows 8-15
-        const bodyFrame = frame % 4;
+        // Body rows 8-11: Upper body/arms
         // Shirt
         for (let i = 3; i <= 9; i++) drawPx(i, 8, p.shirt);
         drawPx(2, 8, p.outfit);
@@ -304,32 +306,100 @@ const MarioRenderer = {
         for (let i = 2; i <= 10; i++) drawPx(i, 11, p.outfit);
         drawPx(11, 11, p.skin);
 
-        // Belt area
+        // Rows 12-17: Torso / belt area
         for (let i = 3; i <= 9; i++) drawPx(i, 12, p.outfit);
         drawPx(2, 12, p.outfitDark);
         drawPx(10, 12, p.outfitDark);
 
         for (let i = 3; i <= 9; i++) drawPx(i, 13, p.outfit);
 
-        // Legs - vary by frame
+        for (let i = 2; i <= 10; i++) drawPx(i, 14, p.outfit);
+
+        drawPx(2, 15, p.outfitDark);
+        for (let i = 3; i <= 9; i++) drawPx(i, 15, p.outfit);
+        drawPx(10, 15, p.outfitDark);
+
+        for (let i = 3; i <= 9; i++) drawPx(i, 16, p.outfit);
+
+        for (let i = 3; i <= 9; i++) drawPx(i, 17, p.outfit);
+
+        // Rows 18-27: Legs - vary by frame
+        const bodyFrame = frame % 4;
         if (bodyFrame === 0 || bodyFrame === 2) {
-            // Standing
-            for (let i = 3; i <= 5; i++) drawPx(i, 14, p.outfit);
-            for (let i = 7; i <= 9; i++) drawPx(i, 14, p.outfit);
-            for (let i = 2; i <= 5; i++) drawPx(i, 15, p.shoes);
-            for (let i = 7; i <= 10; i++) drawPx(i, 15, p.shoes);
+            // Standing legs
+            // Upper legs (rows 18-21)
+            for (let i = 3; i <= 5; i++) drawPx(i, 18, p.outfit);
+            for (let i = 7; i <= 9; i++) drawPx(i, 18, p.outfit);
+            for (let i = 3; i <= 5; i++) drawPx(i, 19, p.outfit);
+            for (let i = 7; i <= 9; i++) drawPx(i, 19, p.outfit);
+            for (let i = 3; i <= 5; i++) drawPx(i, 20, p.outfit);
+            for (let i = 7; i <= 9; i++) drawPx(i, 20, p.outfit);
+            for (let i = 3; i <= 5; i++) drawPx(i, 21, p.outfit);
+            for (let i = 7; i <= 9; i++) drawPx(i, 21, p.outfit);
+            // Lower legs (rows 22-25)
+            for (let i = 3; i <= 5; i++) drawPx(i, 22, p.outfit);
+            for (let i = 7; i <= 9; i++) drawPx(i, 22, p.outfit);
+            for (let i = 3; i <= 5; i++) drawPx(i, 23, p.outfit);
+            for (let i = 7; i <= 9; i++) drawPx(i, 23, p.outfit);
+            // Feet (rows 24-27)
+            for (let i = 2; i <= 5; i++) drawPx(i, 24, p.shoes);
+            for (let i = 7; i <= 10; i++) drawPx(i, 24, p.shoes);
+            for (let i = 2; i <= 6; i++) drawPx(i, 25, p.shoes);
+            for (let i = 7; i <= 11; i++) drawPx(i, 25, p.shoes);
+            for (let i = 1; i <= 6; i++) drawPx(i, 26, p.shoes);
+            for (let i = 7; i <= 11; i++) drawPx(i, 26, p.shoes);
+            for (let i = 1; i <= 6; i++) drawPx(i, 27, p.shoes);
+            for (let i = 7; i <= 11; i++) drawPx(i, 27, p.shoes);
         } else if (bodyFrame === 1) {
-            // Legs apart
-            for (let i = 2; i <= 4; i++) drawPx(i, 14, p.outfit);
-            for (let i = 8; i <= 10; i++) drawPx(i, 14, p.outfit);
-            for (let i = 1; i <= 4; i++) drawPx(i, 15, p.shoes);
-            for (let i = 8; i <= 11; i++) drawPx(i, 15, p.shoes);
+            // Legs apart (walking)
+            // Upper legs (rows 18-21)
+            for (let i = 2; i <= 4; i++) drawPx(i, 18, p.outfit);
+            for (let i = 8; i <= 10; i++) drawPx(i, 18, p.outfit);
+            for (let i = 2; i <= 4; i++) drawPx(i, 19, p.outfit);
+            for (let i = 8; i <= 10; i++) drawPx(i, 19, p.outfit);
+            for (let i = 1; i <= 4; i++) drawPx(i, 20, p.outfit);
+            for (let i = 8; i <= 11; i++) drawPx(i, 20, p.outfit);
+            for (let i = 1; i <= 4; i++) drawPx(i, 21, p.outfit);
+            for (let i = 9; i <= 11; i++) drawPx(i, 21, p.outfit);
+            // Lower legs (rows 22-25)
+            for (let i = 1; i <= 3; i++) drawPx(i, 22, p.outfit);
+            for (let i = 9; i <= 12; i++) drawPx(i, 22, p.outfit);
+            for (let i = 1; i <= 3; i++) drawPx(i, 23, p.outfit);
+            for (let i = 10; i <= 12; i++) drawPx(i, 23, p.outfit);
+            // Feet (rows 24-27)
+            for (let i = 0; i <= 3; i++) drawPx(i, 24, p.shoes);
+            for (let i = 9; i <= 12; i++) drawPx(i, 24, p.shoes);
+            for (let i = 0; i <= 4; i++) drawPx(i, 25, p.shoes);
+            for (let i = 9; i <= 13; i++) drawPx(i, 25, p.shoes);
+            for (let i = 0; i <= 4; i++) drawPx(i, 26, p.shoes);
+            for (let i = 10; i <= 13; i++) drawPx(i, 26, p.shoes);
+            for (let i = 0; i <= 4; i++) drawPx(i, 27, p.shoes);
+            for (let i = 10; i <= 13; i++) drawPx(i, 27, p.shoes);
         } else if (bodyFrame === 3) {
-            // Jump pose
-            for (let i = 2; i <= 5; i++) drawPx(i, 14, p.shoes);
-            for (let i = 7; i <= 10; i++) drawPx(i, 14, p.shoes);
-            for (let i = 1; i <= 5; i++) drawPx(i, 15, p.shoes);
-            for (let i = 7; i <= 11; i++) drawPx(i, 15, p.shoes);
+            // Jump pose - legs extended
+            // Upper legs (rows 18-21)
+            for (let i = 2; i <= 5; i++) drawPx(i, 18, p.outfit);
+            for (let i = 7; i <= 10; i++) drawPx(i, 18, p.outfit);
+            for (let i = 2; i <= 5; i++) drawPx(i, 19, p.outfit);
+            for (let i = 7; i <= 10; i++) drawPx(i, 19, p.outfit);
+            for (let i = 1; i <= 5; i++) drawPx(i, 20, p.outfit);
+            for (let i = 7; i <= 11; i++) drawPx(i, 20, p.outfit);
+            for (let i = 1; i <= 5; i++) drawPx(i, 21, p.outfit);
+            for (let i = 7; i <= 11; i++) drawPx(i, 21, p.outfit);
+            // Lower legs (rows 22-25)
+            for (let i = 1; i <= 5; i++) drawPx(i, 22, p.shoes);
+            for (let i = 7; i <= 11; i++) drawPx(i, 22, p.shoes);
+            for (let i = 1; i <= 5; i++) drawPx(i, 23, p.shoes);
+            for (let i = 7; i <= 11; i++) drawPx(i, 23, p.shoes);
+            // Feet (rows 24-27)
+            for (let i = 0; i <= 5; i++) drawPx(i, 24, p.shoes);
+            for (let i = 7; i <= 12; i++) drawPx(i, 24, p.shoes);
+            for (let i = 0; i <= 6; i++) drawPx(i, 25, p.shoes);
+            for (let i = 7; i <= 12; i++) drawPx(i, 25, p.shoes);
+            for (let i = 0; i <= 6; i++) drawPx(i, 26, p.shoes);
+            for (let i = 7; i <= 12; i++) drawPx(i, 26, p.shoes);
+            for (let i = 0; i <= 6; i++) drawPx(i, 27, p.shoes);
+            for (let i = 7; i <= 12; i++) drawPx(i, 27, p.shoes);
         }
     },
 
@@ -889,10 +959,10 @@ const MarioRenderer = {
         ctx.fillRect(fx, fy + 14, 5, 2);
         // Legs
         ctx.fillStyle = '#00A800';
-        const wf = Math.floor(frame / 10) % 2;
+        const wf2 = Math.floor(frame / 10) % 2;
         ctx.fillRect(fx + 6, fy + 24, 6, 8);
         ctx.fillRect(fx + 20, fy + 24, 6, 8);
-        if (wf) {
+        if (wf2) {
             ctx.fillRect(fx + 4, fy + 28, 4, 4);
             ctx.fillRect(fx + 24, fy + 26, 4, 4);
         } else {
@@ -1216,7 +1286,7 @@ const MarioRenderer = {
         ctx.fillRect(fx + 12, fy + 7, 2, 2);
         // Feet
         ctx.fillStyle = '#FCA044';
-        const wf = Math.floor(frame / 8) % 2;
+        const wf3 = Math.floor(frame / 8) % 2;
         ctx.fillRect(fx + 1, fy + 12, 5, 4);
         ctx.fillRect(fx + 10, fy + 12, 5, 4);
     },

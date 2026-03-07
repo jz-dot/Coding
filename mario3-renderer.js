@@ -204,8 +204,8 @@ const Mario3Renderer = {
         }
     },
 
-    // Player with different suits
-    drawPlayer(ctx, x, y, palette, frame, dir, suit, starPower, frameCount) {
+    // Bug #16: Player with different suits - added ducking parameter
+    drawPlayer(ctx, x, y, palette, frame, dir, suit, starPower, frameCount, ducking) {
         const p = palette || this.ASHIO_PALETTE;
         ctx.save();
         if (dir === -1) {
@@ -214,7 +214,10 @@ const Mario3Renderer = {
             x = 0;
         }
 
-        if (suit === 'small') {
+        // Bug #16: When ducking and big, draw shorter sprite
+        if (ducking && suit !== 'small') {
+            this.drawPlayerDucking(ctx, x, y, p, suit);
+        } else if (suit === 'small') {
             this.drawPlayerSmall(ctx, x, y, p, frame);
         } else if (suit === 'raccoon') {
             this.drawPlayerRaccoon(ctx, x, y, p, frame);
@@ -236,6 +239,27 @@ const Mario3Renderer = {
         }
 
         ctx.restore();
+    },
+
+    // Bug #16: Ducking sprite - shorter, offset to bottom of hitbox
+    drawPlayerDucking(ctx, x, y, p, suit) {
+        const duckY = y + 14; // Offset so bottom aligns with standing position
+        const isFire = suit === 'fire';
+        // Hat
+        ctx.fillStyle = isFire ? '#FFF' : p.outfit;
+        ctx.fillRect(x + 2, duckY, 12, 3);
+        // Hair
+        ctx.fillStyle = p.hair;
+        ctx.fillRect(x + 2, duckY + 3, 12, 3);
+        ctx.fillRect(x + 12, duckY + 1, 3, 6);
+        // Face
+        ctx.fillStyle = p.skin;
+        ctx.fillRect(x + 3, duckY + 5, 10, 3);
+        ctx.fillStyle = p.eyes;
+        ctx.fillRect(x + 5, duckY + 5, 2, 2);
+        // Body (compressed)
+        ctx.fillStyle = isFire ? '#D82800' : p.outfit;
+        ctx.fillRect(x + 2, duckY + 8, 12, 6);
     },
 
     drawPlayerSmall(ctx, x, y, p, frame) {

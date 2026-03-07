@@ -100,6 +100,19 @@
                 this.createSquare(300, 0.2, t + 0.5);
                 this.createTriangle(150, 0.3, t + 0.5);
                 break;
+            // BUG FIX #7: Game over SFX - classic SMB descending tone sequence
+            case 'gameover':
+            case 'smb_gameover':
+                this.createSquare(523, 0.12, t);          // C5
+                this.createSquare(466, 0.12, t + 0.15);   // Bb4
+                this.createSquare(415, 0.12, t + 0.30);   // Ab4
+                this.createSquare(370, 0.15, t + 0.45);   // F#4
+                this.createSquare(311, 0.15, t + 0.65);   // Eb4
+                this.createSquare(277, 0.15, t + 0.85);   // C#4
+                this.createSquare(233, 0.20, t + 1.05);   // Bb3
+                this.createSquare(208, 0.25, t + 1.30);   // Ab3
+                this.createTriangle(104, 0.4, t + 1.30);  // Low bass rumble
+                break;
             case 'smb_timewarning':
                 for (let i = 0; i < 3; i++) {
                     this.createSquare(600, 0.06, t + i * 0.12);

@@ -18,6 +18,7 @@ class NESAudio {
     init() {
         if (this.initialized) return;
         this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        if (this.ctx.state === 'suspended') this.ctx.resume();
         this.masterGain = this.ctx.createGain();
         this.masterGain.gain.value = this.volume;
         this.masterGain.connect(this.ctx.destination);

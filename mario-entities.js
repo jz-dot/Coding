@@ -310,9 +310,9 @@ class PiranhaPlant extends MarioEntity {
         super.update(engine);
         if (!this.activated) return;
 
-        // Don't emerge if player is adjacent to pipe
+        // BUG FIX #5: Don't emerge if player is on the 2-tile-wide pipe (check distance <= 2 instead of <= 1)
         const playerCol = Math.floor((engine.playerX + engine.playerW / 2) / 16);
-        const nearPipe = Math.abs(playerCol - this.pipeCol) <= 1;
+        const nearPipe = Math.abs(playerCol - this.pipeCol) <= 2;
 
         this.stateTimer--;
 
@@ -482,6 +482,7 @@ class HammerBro extends MarioEntity {
         this.moveTimer--;
         if (this.moveTimer <= 0) {
             this.vx = -this.vx;
+            this.direction = this.vx < 0 ? -1 : 1;
             this.moveTimer = 60 + Math.random() * 30;
         }
 
@@ -492,8 +493,8 @@ class HammerBro extends MarioEntity {
         this.throwTimer--;
         if (this.throwTimer <= 0) {
             this.throwTimer = 40 + Math.floor(Math.random() * 30);
-            // Create hammer entity
-            engine.entities.push(new Hammer(this.x, this.y - 8, { dir: engine.playerX < this.x ? -1 : 1 }));
+            // BUG FIX #9: Use facing direction instead of player-tracking
+            engine.entities.push(new Hammer(this.x, this.y - 8, { dir: this.direction }));
         }
 
         // Jump occasionally

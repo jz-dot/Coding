@@ -594,9 +594,9 @@ const Mario2Renderer = {
         ctx.fillRect(x + 8, y + 6, 4, 3);
         ctx.fillRect(x + 20, y + 6, 4, 3);
         // Mouth
-        const mouthOpen = Math.floor(frame / 10) % 2;
+        const mouthIsOpen = frame > 0;
         ctx.fillStyle = '#D82800';
-        ctx.fillRect(x + 10, y + 22, 12, mouthOpen ? 6 : 3);
+        ctx.fillRect(x + 10, y + 22, 12, mouthIsOpen ? 6 : 3);
     },
 
     drawHUD(ctx, lives, charIdx, world, stage, score, cherries) {

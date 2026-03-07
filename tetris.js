@@ -10,8 +10,6 @@ class TetrisEngine {
         this.ROWS = 20;
         this.HIDDEN_ROWS = 2;
         this.TOTAL_ROWS = this.ROWS + this.HIDDEN_ROWS;
-        this.CELL_SIZE = 20;
-
         // NES Tetris pieces with exact rotation states
         // NES uses a right-hand rotation system
         this.PIECES = {
@@ -212,7 +210,7 @@ class TetrisEngine {
         this.nextPiece = this.randomPiece();
         this.rotation = 0;
         this.pieceX = 3; // NES spawns at column 3 (0-indexed)
-        this.pieceY = 0; // top of hidden area
+        this.pieceY = this.HIDDEN_ROWS; // spawn visible at top of playfield
         this.gravityCounter = 0;
         this.softDropping = false;
 
@@ -221,7 +219,6 @@ class TetrisEngine {
         // Check if spawn position is valid
         if (!this.isValidPosition(this.pieceX, this.pieceY, this.rotation)) {
             this.gameOver = true;
-            nesAudio.playSFX('gameover');
             return false;
         }
         return true;
@@ -281,43 +278,7 @@ class TetrisEngine {
         return false;
     }
 
-    rotateCounterClockwise() {
-        if (this.lineClearing || !this.currentPiece || this.gameOver || this.paused) return false;
-        const newRot = (this.rotation + 3) % 4;
-        if (this.isValidPosition(this.pieceX, this.pieceY, newRot)) {
-            this.rotation = newRot;
-            nesAudio.playSFX('rotate');
-            return true;
-        }
-        return false;
-    }
-
-    softDrop() {
-        if (this.lineClearing || !this.currentPiece || this.gameOver || this.paused) return false;
-        if (this.isValidPosition(this.pieceX, this.pieceY + 1, this.rotation)) {
-            this.pieceY++;
-            // NES awards 1 point per soft drop row
-            this.score += 1;
-            nesAudio.playSFX('move');
-            return true;
-        }
-        return false;
-    }
-
-    hardDrop() {
-        if (this.lineClearing || !this.currentPiece || this.gameOver || this.paused) return false;
-        let rows = 0;
-        while (this.isValidPosition(this.pieceX, this.pieceY + 1, this.rotation)) {
-            this.pieceY++;
-            rows++;
-        }
-        // Hard drop scoring (2 points per row - this is a modern addition,
-        // NES didn't have hard drop, but we include it as a QoL feature)
-        this.score += rows * 2;
-        this.lockPiece();
-        nesAudio.playSFX('drop');
-        return true;
-    }
+    // NES Tetris has no counter-clockwise rotation or hard drop
 
     lockPiece() {
         if (!this.currentPiece) return;
@@ -437,8 +398,13 @@ class TetrisEngine {
     // DAS handling
     handleDAS(direction) {
         if (direction !== this.dasDirection) {
+            // NES DAS: preserve charge when switching directions
+            if (this.dasCounter >= this.DAS_INITIAL) {
+                this.dasCounter = this.DAS_INITIAL;
+            } else {
+                this.dasCounter = 0;
+            }
             this.dasDirection = direction;
-            this.dasCounter = 0;
             if (direction === -1) this.moveLeft();
             else if (direction === 1) this.moveRight();
         } else {
@@ -457,9 +423,19 @@ class TetrisEngine {
         this.dasCounter = 0;
     }
 
-    // Get the level-based color for a piece
+    // NES level color cycling - maps piece colors to level palette
     getLevelColor(pieceColor) {
-        return pieceColor;
+        const palette = this.LEVEL_COLORS[this.level % 10];
+        const colorMap = {
+            '#00F0F0': palette.c1, // I - Cyan
+            '#0000F0': palette.c1, // J - Blue
+            '#F0A000': palette.c2, // L - Orange
+            '#00F000': palette.c2, // S - Green
+            '#F00000': palette.c1, // Z - Red
+            '#A000F0': palette.c2, // T - Purple
+            '#F0F000': palette.c3, // O - Yellow
+        };
+        return colorMap[pieceColor] || pieceColor;
     }
 
     // Render the board and current piece
@@ -519,11 +495,12 @@ class TetrisEngine {
             ctx.stroke();
         }
 
-        // Draw placed blocks
+        // Draw placed blocks (skip rows being cleared to avoid flicker)
         for (let r = this.HIDDEN_ROWS; r < this.TOTAL_ROWS; r++) {
+            if (this.lineClearing && this.clearingLines.includes(r)) continue;
             for (let c = 0; c < this.COLS; c++) {
                 if (this.board[r][c]) {
-                    this.drawBlock(ctx, c, r - this.HIDDEN_ROWS, this.board[r][c], ox, oy, cs);
+                    this.drawBlock(ctx, c, r - this.HIDDEN_ROWS, this.getLevelColor(this.board[r][c]), ox, oy, cs);
                 }
             }
         }
@@ -546,7 +523,7 @@ class TetrisEngine {
 
         // Draw current piece
         if (this.currentPiece && !this.lineClearing) {
-            const color = this.PIECES[this.currentPiece].color;
+            const color = this.getLevelColor(this.PIECES[this.currentPiece].color);
             const blocks = this.getBlocks(this.pieceX, this.pieceY, this.rotation);
 
             for (const [x, y] of blocks) {
@@ -579,7 +556,7 @@ class TetrisEngine {
         }
     }
 
-    drawBlock(ctx, x, y, color, ox = 0, oy = 0, cs = this.CELL_SIZE) {
+    drawBlock(ctx, x, y, color, ox = 0, oy = 0, cs = 20) {
         const px = x * cs + ox;
         const py = y * cs + oy;
 

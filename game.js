@@ -416,6 +416,8 @@
 
                     if (currentGame === 'tetris') {
                         tetris.softDropping = keys['ArrowDown'] || keys['KeyS'];
+                    } else if (currentGame === 'drmario') {
+                        drmario.softDropping = keys['ArrowDown'] || keys['KeyS'];
                     }
                 }
 
@@ -617,16 +619,10 @@
             // Puzzle game controls
             switch(code) {
                 case 'KeyZ':
-                    engine.rotateCounterClockwise();
-                    break;
                 case 'KeyX':
                 case 'ArrowUp':
                 case 'KeyW':
                     engine.rotateClockwise();
-                    break;
-                case 'Space':
-                    if (currentGame === 'tetris') tetris.hardDrop();
-                    else drmario.hardDrop();
                     break;
                 case 'ArrowDown':
                 case 'KeyS':

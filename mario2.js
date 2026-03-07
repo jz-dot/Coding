@@ -48,9 +48,11 @@ class SuperMario2Engine {
         this.playerH = 22;
         this.playerDir = 1;
         this.grounded = false;
+        this.groundedTimer = 0;
         this.jumping = false;
         this.jumpHeld = false;
         this.running = false;
+        this.runHeld = false;
         this.crouching = false;
         this.floating = false;
         this.floatTimer = 0;
@@ -181,14 +183,18 @@ class SuperMario2Engine {
     }
 
     isSolid(tile) {
-        return tile === 1 || tile === 2 || tile === 3 || tile === 4 || tile === 10 || tile === 15 || tile === 16;
+        return tile === 1 || tile === 2 || tile === 3 || tile === 4 || tile === 7 || tile === 10 || tile === 15 || tile === 16;
     }
 
     // ---- INPUT ----
 
     pressJump() {
-        if (this.dead || this.charSelecting) return;
-        if (this.grounded && !this.jumping) {
+        if (this.dead) return;
+        if (this.charSelecting) {
+            this.selectCharacter(this.selectedChar);
+            return;
+        }
+        if ((this.grounded || this.groundedTimer > 0) && !this.jumping) {
             this.jumping = true;
             this.jumpHeld = true;
             this.grounded = false;
@@ -202,15 +208,17 @@ class SuperMario2Engine {
 
     pressRun() {
         this.running = true;
-        if (!this.carrying && !this.dead) {
-            // Try to pick up
-            this.tryPickUp();
-        } else if (this.carrying) {
-            this.throwItem();
+        if (!this.runHeld) {
+            this.runHeld = true;
+            if (!this.carrying && !this.dead) {
+                this.tryPickUp();
+            } else if (this.carrying) {
+                this.throwItem();
+            }
         }
     }
 
-    releaseRun() { this.running = false; }
+    releaseRun() { this.running = false; this.runHeld = false; }
 
     pressCrouch() {
         this.inputDown = true;
@@ -227,16 +235,23 @@ class SuperMario2Engine {
     tryPickUp() {
         if (this.carrying) return;
 
-        // Check for pullable vegetation below player
+        // Check for pullable vegetation at player center and above
         const T = this.TILE;
         const playerCol = Math.floor((this.playerX + this.playerW / 2) / T);
-        const playerRow = Math.floor((this.playerY + this.playerH) / T);
+        const checkRow1 = Math.floor((this.playerY + this.playerH / 2) / T); // center
+        const checkRow2 = Math.floor(this.playerY / T); // top
+        const checkRow3 = Math.floor((this.playerY + this.playerH) / T); // feet
 
-        // Check tile beneath
-        const tile = this.getTile(playerCol, playerRow);
-        if (tile === 9) { // Veggie
+        // Check multiple rows for veggie
+        const tile1 = this.getTile(playerCol, checkRow1);
+        const tile2 = this.getTile(playerCol, checkRow2);
+        const tile3 = this.getTile(playerCol, checkRow3);
+        const pullRow = tile1 === 9 ? checkRow1 : tile2 === 9 ? checkRow2 : tile3 === 9 ? checkRow3 : -1;
+        if (pullRow >= 0) {
             this.pulling = true;
             this.pullTimer = this.charStats.pull;
+            this._pullCol = playerCol;
+            this._pullRow = pullRow;
             return;
         }
 
@@ -295,7 +310,13 @@ class SuperMario2Engine {
         }
 
         this.grounded = onGround;
-        if (onGround) { this.jumping = false; this.floating = false; }
+        if (onGround) {
+            this.jumping = false;
+            this.floating = false;
+            this.groundedTimer = 5;
+        } else {
+            if (this.groundedTimer > 0) this.groundedTimer--;
+        }
 
         // Head
         if (this.playerVY < 0) {
@@ -323,6 +344,26 @@ class SuperMario2Engine {
             if (this.isSolid(this.getTile(newRightCol, r))) {
                 this.playerX = newRightCol * T - pw;
                 if (this.playerVX > 0) this.playerVX = 0;
+            }
+        }
+
+        // Spike damage
+        for (let r = topRow; r <= feetRow; r++) {
+            for (let c = leftCol; c <= rightCol; c++) {
+                if (this.getTile(c, r) === 11) { this.takeDamage(); return; }
+            }
+        }
+
+        // POW block hit from below
+        if (this.playerVY < 0) {
+            const headRow = Math.floor(this.playerY / T);
+            const midCol = Math.floor((this.playerX + pw / 2) / T);
+            if (this.getTile(midCol, headRow) === 7) {
+                this.setTile(midCol, headRow, 0);
+                nesAudio.playSFX('smb2_pow');
+                for (const e of this.entities) {
+                    if (e.active && e.isEnemy && e.grounded) e.die(this);
+                }
             }
         }
 
@@ -481,10 +522,9 @@ class SuperMario2Engine {
             this.pullTimer--;
             if (this.pullTimer <= 0) {
                 this.pulling = false;
-                const T = this.TILE;
-                const col = Math.floor((this.playerX + this.playerW / 2) / T);
-                const row = Math.floor((this.playerY + this.playerH) / T);
-                if (this.getTile(col, row) === 9) {
+                const col = this._pullCol;
+                const row = this._pullRow;
+                if (col !== undefined && row !== undefined && this.getTile(col, row) === 9) {
                     this.setTile(col, row, 0);
                     // Create carried vegetable
                     const veg = Mario2Entities.create('vegetable', this.playerX, this.playerY - 16, { vegType: 'turnip' });
@@ -542,27 +582,35 @@ class SuperMario2Engine {
     updatePlayer() {
         const maxSpeed = this.running ? this.RUN_MAX : this.charStats.speed;
 
+        // Ice physics: reduce friction/accel when on ice
+        const T = this.TILE;
+        const standCol = Math.floor((this.playerX + this.playerW / 2) / T);
+        const standRow = Math.floor((this.playerY + this.playerH + 1) / T);
+        const onIce = this.grounded && this.getTile(standCol, standRow) === 10;
+        const accel = onIce ? 0.06 : this.WALK_ACCEL;
+        const friction = onIce ? 0.02 : this.FRICTION;
+
         // Horizontal
         if (this.inputLeft && !this.crouching) {
             this.playerDir = -1;
-            this.playerVX -= this.WALK_ACCEL;
+            this.playerVX -= accel;
             if (this.playerVX < -maxSpeed) this.playerVX = -maxSpeed;
         } else if (this.inputRight && !this.crouching) {
             this.playerDir = 1;
-            this.playerVX += this.WALK_ACCEL;
+            this.playerVX += accel;
             if (this.playerVX > maxSpeed) this.playerVX = maxSpeed;
         } else {
             if (this.playerVX > 0) {
-                this.playerVX -= this.FRICTION;
+                this.playerVX -= friction;
                 if (this.playerVX < 0) this.playerVX = 0;
             } else if (this.playerVX < 0) {
-                this.playerVX += this.FRICTION;
+                this.playerVX += friction;
                 if (this.playerVX > 0) this.playerVX = 0;
             }
         }
 
         this.playerX += this.playerVX;
-        if (this.playerX < this.cameraX) { this.playerX = this.cameraX; this.playerVX = 0; }
+        if (this.playerX < 0) { this.playerX = 0; this.playerVX = 0; }
 
         // Gravity
         if (this.charIdx === 2 && !this.grounded && this.jumpHeld && this.playerVY > 0 && this.floatTimer > 0) {
@@ -584,7 +632,7 @@ class SuperMario2Engine {
 
     updateCamera() {
         const targetX = this.playerX - 80;
-        if (targetX > this.cameraX) this.cameraX = targetX;
+        this.cameraX = targetX;
         this.cameraX = Math.max(0, Math.min(this.cameraX, this.maxCameraX));
     }
 
@@ -721,8 +769,20 @@ class SuperMario2Engine {
         else if (dir === 1) this.inputRight = true;
     }
     resetDAS() { this.inputLeft = false; this.inputRight = false; }
-    moveLeft() { this.inputLeft = true; }
-    moveRight() { this.inputRight = true; }
+    moveLeft() {
+        if (this.charSelecting) {
+            this.selectedChar = (this.selectedChar + 3) % 4;
+            return;
+        }
+        this.inputLeft = true;
+    }
+    moveRight() {
+        if (this.charSelecting) {
+            this.selectedChar = (this.selectedChar + 1) % 4;
+            return;
+        }
+        this.inputRight = true;
+    }
     rotateClockwise() { this.pressJump(); }
     rotateCounterClockwise() { this.pressRun(); }
 }

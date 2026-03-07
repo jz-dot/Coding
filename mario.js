@@ -446,12 +446,13 @@ class SuperMarioEngine {
         }
 
         // --- AXE CHECK (castle) ---
+        // BUG FIX #4: Widen axe detection to <= 2 rows to account for bridge/axe mismatch
         if (this.levelData && this.levelData.axe && !this.bowserDefeated) {
             const axeCol = this.levelData.axe.col;
             const axeRow = this.levelData.axe.row + 2;
             const playerCol = Math.floor((this.playerX + pw / 2) / T);
             const playerRow = Math.floor((this.playerY + ph / 2) / T);
-            if (Math.abs(playerCol - axeCol) <= 1 && Math.abs(playerRow - axeRow) <= 1) {
+            if (Math.abs(playerCol - axeCol) <= 1 && Math.abs(playerRow - axeRow) <= 2) {
                 this.defeatBowser();
             }
         }
@@ -864,7 +865,7 @@ class SuperMarioEngine {
                 this.lives--;
                 if (this.lives <= 0) {
                     this.gameOver = true;
-                    nesAudio.playSFX('gameover');
+                    nesAudio.playSFX('smb_gameover');
                 } else {
                     this.dead = false;
                     this.playerState = 'small';
@@ -1037,6 +1038,9 @@ class SuperMarioEngine {
     }
 
     updatePlayer() {
+        // BUG FIX #10: Set player height at START of updatePlayer to avoid 1-frame desync
+        this.playerH = this.playerState === 'small' ? 16 : 28;
+
         const maxSpeed = this.running ? this.RUN_MAX : this.WALK_MAX;
         const accel = this.running ? this.RUN_ACCEL : this.WALK_ACCEL;
 
@@ -1097,8 +1101,11 @@ class SuperMarioEngine {
 
         this.playerY += this.playerVY;
 
-        // Player height based on state
-        this.playerH = this.playerState === 'small' ? 16 : 28;
+        // BUG FIX #6: Underwater ceiling bounds check
+        if (this.underwater && this.playerY < 32) {
+            this.playerY = 32;
+            this.playerVY = 0;
+        }
     }
 
     updateCamera() {
@@ -1256,6 +1263,28 @@ class SuperMarioEngine {
                 flagDrawY = Math.min(this.playerY - 8, this.flagBaseY - 16);
             }
             R.drawTile(ctx, 29, flagScreenX - 8, flagDrawY, this.frameCount);
+        }
+
+        // BUG FIX #8: Warp Zone text display
+        if (this.levelData && this.levelData.warpZone) {
+            const wz = this.levelData.warpZone;
+            const wzScreenX = wz.col * T - Math.floor(this.cameraX);
+            if (wzScreenX < this.SCREEN_W && wzScreenX > -200) {
+                // Draw "WELCOME TO WARP ZONE!" text
+                ctx.fillStyle = '#FFF';
+                ctx.font = '8px "Press Start 2P", monospace';
+                const textX = wzScreenX + 8;
+                ctx.fillText('WELCOME TO', textX, 60);
+                ctx.fillText('WARP ZONE!', textX, 74);
+                // Draw pipe destination numbers
+                if (wz.destinations) {
+                    const pipeSpacing = 8 * T; // pipes are 8 tiles apart
+                    for (let i = 0; i < wz.destinations.length; i++) {
+                        const pipeX = (wz.col + 5 + i * 8) * T - Math.floor(this.cameraX);
+                        ctx.fillText(String(wz.destinations[i]), pipeX + 4, 52);
+                    }
+                }
+            }
         }
 
         // HUD

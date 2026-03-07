@@ -391,8 +391,8 @@ const MarioLevels = {
                 { type: 'bowser', col: 128, row: 6, hp: 5 },
             ],
             pipes: [],
-            axe: { col: 137, row: 6 },
-            bridge: { startCol: 120, endCol: 135, row: 7 },
+            axe: { col: 137, row: 8 },
+            bridge: { startCol: 120, endCol: 135, row: 9 },
             isCastle: true,
         };
     },
@@ -753,8 +753,8 @@ const MarioLevels = {
                 { type: 'bowser', col: width - 25, row: 6, hp: 5 + world },
             ],
             pipes: [],
-            axe: { col: bridgeEnd + 2, row: 6 },
-            bridge: { startCol: bridgeStart, endCol: bridgeEnd, row: 7 },
+            axe: { col: bridgeEnd + 2, row: 8 },
+            bridge: { startCol: bridgeStart, endCol: bridgeEnd, row: 9 },
             isCastle: true,
         };
     },

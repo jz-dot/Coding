@@ -180,11 +180,15 @@ class SnifitBullet extends SMB2Entity {
     update(engine) {
         super.update(engine);
         this.x += this.vx;
+        if (this.vy !== undefined) this.y += this.vy;
         if (this.x < engine.cameraX - 16 || this.x > engine.cameraX + 272) this.active = false;
+        if (this.y < -16 || this.y > 256) this.active = false;
     }
     render(ctx, sx, sy) {
-        ctx.fillStyle = '#000';
-        ctx.fillRect(sx, sy, 8, 8);
+        ctx.fillStyle = '#F83800';
+        ctx.beginPath();
+        ctx.arc(sx + 4, sy + 4, 4, 0, Math.PI * 2);
+        ctx.fill();
     }
 }
 
@@ -256,6 +260,9 @@ class Pokey extends SMB2Entity {
     }
     update(engine) {
         super.update(engine);
+        // Slow walk toward player
+        this.vx = engine.playerX > this.x ? 0.3 : -0.3;
+        this.x += this.vx;
     }
     render(ctx, sx, sy, frame) {
         // Cactus segments
@@ -334,13 +341,18 @@ class Trouter extends SMB2Entity {
         this.canBeStoodOn = true;
         this.canBePickedUp = true;
         this.startY = y;
-        this.jumpPhase = Math.random() * Math.PI * 2;
+        this.vy = -4;
+        this.jumpGravity = 0.15;
     }
     update(engine) {
         super.update(engine);
         if (!this.activated) return;
-        this.jumpPhase += 0.04;
-        this.y = this.startY + Math.sin(this.jumpPhase) * 40;
+        this.vy += this.jumpGravity;
+        this.y += this.vy;
+        if (this.y >= this.startY) {
+            this.y = this.startY;
+            this.vy = -4;
+        }
     }
     render(ctx, sx, sy, frame) {
         ctx.fillStyle = '#D82800';
@@ -362,7 +374,7 @@ class Birdo extends SMB2Entity {
         this.isEnemy = true;
         this.isBoss = true;
         this.isDangerous = true;
-        this.canBeStoodOn = false;
+        this.canBeStoodOn = true;
         this.width = 24;
         this.height = 24;
         this.hp = opts.hp || 3;
@@ -557,7 +569,7 @@ class Wart extends SMB2Entity {
     }
     render(ctx, sx, sy, frame) {
         if (!this.active) return;
-        Mario2Renderer.drawWart(ctx, sx, sy, this.mouthOpen ? frame : 0);
+        Mario2Renderer.drawWart(ctx, sx, sy, this.mouthOpen ? 1 : 0);
     }
 }
 

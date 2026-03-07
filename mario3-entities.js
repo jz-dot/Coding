@@ -31,6 +31,7 @@ const Mario3Entities = {
             case 'hammerSuit': return new HammerSuit(x, y, opts);
             case 'fireball3': return new Fireball3(x, y, opts);
             case 'coin3': return new Coin3(x, y, opts);
+            case 'spiny3': return new Spiny3(x, y, opts);
             default:
                 console.warn('Unknown SMB3 entity:', type);
                 return new Goomba3(x, y, opts);
@@ -158,6 +159,8 @@ class Koopa3 extends SMB3Entity {
     onStomp(engine) {
         if (this.flying) { this.flying = false; return; }
         if (!this.inShell) {
+            // Bug #13: Adjust Y before changing height so shell sits on ground
+            this.y += (this.height - 16);
             this.inShell = true; this.shellMoving = false;
             this.vx = 0; this.height = 16; this.isDangerous = false;
         } else if (!this.shellMoving) {
@@ -238,7 +241,8 @@ class BoomBoom extends SMB3Entity {
         if (this.stunTimer > 0) { this.stunTimer--; if (this.stunTimer <= 0 && this.hp > 0) this.isDangerous = true; return; }
         this.moveTimer--;
         if (this.moveTimer <= 0) { this.vx = engine.playerX < this.x ? -1 : 1; this.moveTimer = 40 + Math.floor(Math.random() * 20); }
-        this.x += this.vx;
+        // Bug #9: Use applyMovement instead of raw x += vx
+        this.applyMovement(engine);
         if (this.x < this.startX - 64) { this.x = this.startX - 64; this.vx = 1; }
         if (this.x > this.startX + 32) { this.x = this.startX + 32; this.vx = -1; }
         this.applyGravity(engine);
@@ -252,7 +256,8 @@ class BoomBoom extends SMB3Entity {
         if (this.hp <= 0) {
             this.die(); engine.addScore(3000);
             engine.showScorePopup(this.x, this.y, '3000');
-            engine.bossDefeated = true;
+            // Bug #21: Use _bossDefeated instead of bossDefeated
+            engine._bossDefeated = true;
         }
         // isDangerous restored when stunTimer expires in update()
     }
@@ -269,7 +274,8 @@ class Koopaling extends SMB3Entity {
         this.isEnemy = true; this.isBoss = true;
         this.canBeStomp = true; this.isDangerous = true;
         this.width = 32; this.height = 28;
-        this.hp = opts.hp || 3; this.name = opts.name || 'larry';
+        // Bug #5: Normalize name to lowercase for renderer hair color lookup
+        this.hp = opts.hp || 3; this.name = (opts.name || 'larry').toLowerCase();
         this.stunTimer = 0; this.moveTimer = 0; this.attackTimer = 90;
         this.jumpTimer = 80; this.startX = x;
     }
@@ -280,7 +286,8 @@ class Koopaling extends SMB3Entity {
         if (this.stunTimer > 0) { this.stunTimer--; if (this.stunTimer <= 0 && this.hp > 0) this.isDangerous = true; return; }
         this.moveTimer--;
         if (this.moveTimer <= 0) { this.vx = engine.playerX < this.x ? -0.8 : 0.8; this.moveTimer = 30 + Math.floor(Math.random() * 30); }
-        this.x += this.vx;
+        // Bug #9: Use applyMovement instead of raw x += vx
+        this.applyMovement(engine);
         if (this.x < this.startX - 80) this.vx = 0.8;
         if (this.x > this.startX + 48) this.vx = -0.8;
         this.applyGravity(engine);
@@ -300,7 +307,8 @@ class Koopaling extends SMB3Entity {
         if (this.hp <= 0) {
             this.die(); engine.addScore(5000);
             engine.showScorePopup(this.x, this.y, '5000');
-            engine.bossDefeated = true;
+            // Bug #21: Use _bossDefeated instead of bossDefeated
+            engine._bossDefeated = true;
         }
         // isDangerous restored when stunTimer expires in update()
     }
@@ -328,7 +336,7 @@ class Bowser3 extends SMB3Entity {
         if (this.hp <= 0) {
             this.die(); engine.addScore(50000);
             engine.showScorePopup(this.x, this.y, '50000');
-            engine.bossDefeated = true; engine.gameWon = true;
+            engine._bossDefeated = true; engine.gameWon = true;
             nesAudio.playSFX('smb_bowserfall');
         }
     }
@@ -348,7 +356,8 @@ class Bowser3 extends SMB3Entity {
         const speed = this.phase === 2 ? 1.2 : 0.6;
         this.moveTimer--;
         if (this.moveTimer <= 0) { this.vx = engine.playerX < this.x ? -speed : speed; this.moveTimer = 30 + Math.floor(Math.random() * 20); }
-        this.x += this.vx;
+        // Bug #9: Use applyMovement instead of raw x += vx
+        this.applyMovement(engine);
         if (this.x < this.startX - 80) this.vx = speed;
         if (this.x > this.startX + 48) this.vx = -speed;
         this.applyGravity(engine);
@@ -389,8 +398,9 @@ class HammerBro3 extends SMB3Entity {
         this.throwTimer--;
         if (this.throwTimer <= 0) {
             this.throwTimer = 40 + Math.floor(Math.random() * 30);
-            const h = Mario3Entities.create('fireball3', this.x, this.y - 8, { dir: engine.playerX < this.x ? -1 : 1 });
-            h.vy = -3; h.activated = true; engine.entities.push(h);
+            // Bug #11: Throw a hammer (with arc) instead of a fireball
+            const h = Mario3Entities.create('fireball3', this.x, this.y - 8, { dir: engine.playerX < this.x ? -1 : 1, isHammer: true, vy: -4 });
+            h.activated = true; engine.entities.push(h);
         }
         this.jumpTimer--;
         if (this.jumpTimer <= 0 && this.grounded) { this.vy = -3; this.jumpTimer = 80 + Math.floor(Math.random() * 40); }
@@ -563,7 +573,8 @@ class Lakitu3 extends SMB3Entity {
         this.spawnTimer--;
         if (this.spawnTimer <= 0) {
             this.spawnTimer = 120 + Math.floor(Math.random() * 60);
-            const s = Mario3Entities.create('goomba3', this.x, this.y + 16, {});
+            // Bug #12: Spawn spinies instead of goombas
+            const s = Mario3Entities.create('spiny3', this.x, this.y + 16, {});
             s.activated = true; s.vy = 1; engine.entities.push(s);
         }
     }
@@ -579,6 +590,48 @@ class Lakitu3 extends SMB3Entity {
         ctx.fillStyle = '#000';
         ctx.fillRect(sx + 5, sy + 3, 2, 2);
         ctx.fillRect(sx + 9, sy + 3, 2, 2);
+    }
+}
+
+// Bug #12: Spiny3 class for Lakitu-spawned spinies
+class Spiny3 extends SMB3Entity {
+    constructor(x, y, opts) {
+        super('spiny3', x, y);
+        this.isEnemy = true; this.isDangerous = true;
+        this.canBeStomp = false; // Can't be stomped!
+        this.canBeKilledByBlock = true;
+        this.vx = -0.5;
+    }
+    onActivate() { this.vx = -0.5; }
+    update(engine) {
+        super.update(engine);
+        if (!this.activated) return;
+        // Walk toward player
+        this.vx = engine.playerX < this.x ? -0.5 : 0.5;
+        this.applyMovement(engine);
+        this.applyGravity(engine);
+    }
+    render(ctx, sx, sy, frame) {
+        // Spiky red body
+        ctx.fillStyle = '#D82800';
+        ctx.fillRect(sx + 2, sy + 4, 12, 10);
+        // Spikes on top
+        ctx.fillStyle = '#FAC000';
+        ctx.fillRect(sx + 3, sy, 3, 5);
+        ctx.fillRect(sx + 7, sy, 3, 5);
+        ctx.fillRect(sx + 11, sy, 3, 5);
+        // Eyes
+        ctx.fillStyle = '#FFF';
+        ctx.fillRect(sx + 4, sy + 6, 3, 3);
+        ctx.fillRect(sx + 9, sy + 6, 3, 3);
+        ctx.fillStyle = '#000';
+        ctx.fillRect(sx + 5, sy + 7, 2, 2);
+        ctx.fillRect(sx + 10, sy + 7, 2, 2);
+        // Feet
+        ctx.fillStyle = '#FCA044';
+        const wf = Math.floor(frame / 8) % 2;
+        ctx.fillRect(sx + 2 + wf, sy + 12, 4, 4);
+        ctx.fillRect(sx + 10 - wf, sy + 12, 4, 4);
     }
 }
 
@@ -621,7 +674,21 @@ class Fireball3 extends SMB3Entity {
     update(engine) {
         super.update(engine);
         this.x += this.vx;
-        if (this.vy) { this.y += this.vy; this.vy += 0.2; } // gravity for hammers
+        // Bug #6: Always apply gravity unconditionally (remove if-guard)
+        this.vy += 0.2;
+        this.y += this.vy;
+
+        // Bug #6: Ground bounce for player fireballs
+        if (this.isPlayerFireball && !this.isHammer) {
+            const T = 16;
+            const feetRow = Math.floor((this.y + this.height) / T);
+            const col = Math.floor((this.x + this.width / 2) / T);
+            if (engine.isSolid(engine.getTile(col, feetRow))) {
+                this.y = feetRow * T - this.height;
+                this.vy = -3;
+            }
+        }
+
         if (this.x < engine.camX - 32 || this.x > engine.camX + 280) this.active = false;
         if (this.y > 256) this.active = false;
         // Player fireballs damage enemies
@@ -630,6 +697,11 @@ class Fireball3 extends SMB3Entity {
                 if (e === this || !e.active || !e.isEnemy || e.isPlayerFireball) continue;
                 if (this.x < e.x + e.width && this.x + this.width > e.x &&
                     this.y < e.y + e.height && this.y + this.height > e.y) {
+                    // Bug #2 & #3: Check fireproof before damaging
+                    if (e.fireproof) {
+                        this.active = false;
+                        break;
+                    }
                     if (typeof e.hitByFireball === 'function') e.hitByFireball(engine);
                     else if (typeof e.die === 'function') e.die();
                     this.active = false;
@@ -640,6 +712,15 @@ class Fireball3 extends SMB3Entity {
         }
     }
     render(ctx, sx, sy, frame) {
+        if (this.isHammer) {
+            // Bug #11: Render hammers differently (small brown rectangle)
+            const rot = Math.floor(frame / 2) % 4;
+            ctx.fillStyle = '#8B5A2B';
+            ctx.fillRect(sx, sy, this.width, this.height);
+            ctx.fillStyle = '#C8A030';
+            ctx.fillRect(sx + 1, sy + 1, this.width - 2, 4);
+            return;
+        }
         const f = Math.floor(frame / 3) % 2;
         ctx.fillStyle = f ? '#D82800' : '#FC7460';
         ctx.fillRect(sx, sy, this.width, this.height);

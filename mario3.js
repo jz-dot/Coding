@@ -58,6 +58,9 @@ class SuperMario3Engine {
         this.tailAttack = 0;
         this.pipeTransition = 0;
 
+        // Tanooki statue state (Bug #19)
+        this.statueTimer = 0;
+
         // Camera
         this.camX = 0;
         this.camY = 0;
@@ -224,6 +227,7 @@ class SuperMario3Engine {
         this.flyTimer = 0;
         this.tailAttack = 0;
         this.pipeTransition = 0;
+        this.statueTimer = 0;
 
         this.camX = 0;
         this.camY = 0;
@@ -258,6 +262,11 @@ class SuperMario3Engine {
 
     pressRun() {
         if (this.gameState === 'playing' && !this.dead) {
+            // Bug #1: Fire/hammer suit throwing
+            if (this.suit === 2 || this.suit === 6) {
+                this.throwFireball();
+                return;
+            }
             // Tail attack for raccoon/tanooki
             if ((this.suit === 3 || this.suit === 5) && this.tailAttack <= 0) {
                 this.tailAttack = 12;
@@ -333,6 +342,22 @@ class SuperMario3Engine {
         // Tail attack timer
         if (this.tailAttack > 0) this.tailAttack--;
 
+        // Bug #19: Tanooki statue timer
+        if (this.statueTimer > 0) {
+            this.statueTimer--;
+            // While statue: immobile, invincible, gravity applies
+            this.pvx = 0;
+            this.invincible = 2; // keep invincible while in statue
+            this.pvy += SuperMario3Engine.GRAVITY;
+            if (this.pvy > SuperMario3Engine.MAX_FALL) this.pvy = SuperMario3Engine.MAX_FALL;
+            this.py += this.pvy;
+            this.resolveVerticalCollision();
+            this.updateEntities();
+            this.updateParticles();
+            this.updateCamera();
+            return;
+        }
+
         this.updatePlayer();
         this.updateEntities();
         this.checkPlayerEntityCollisions();
@@ -346,6 +371,12 @@ class SuperMario3Engine {
         const isIce = this.levelData?.isIce;
         const friction = isIce ? SuperMario3Engine.ICE_FRICTION : SuperMario3Engine.FRICTION;
         const runHeld = this.keys.run;
+
+        // Bug #19: Tanooki statue activation
+        if (this.suit === 5 && this.keys.down && runHeld && this.statueTimer <= 0) {
+            this.statueTimer = 150;
+            return;
+        }
 
         // Horizontal movement
         if (this.keys.left && !this.ducking) {
@@ -372,11 +403,14 @@ class SuperMario3Engine {
         if (this.pvx > maxSpeed) this.pvx = maxSpeed;
         if (this.pvx < -maxSpeed) this.pvx = -maxSpeed;
 
-        // P-Meter
+        // P-Meter (Bug #14: drain in air too)
         if (runHeld && Math.abs(this.pvx) >= SuperMario3Engine.MAX_RUN - 0.1 && this.onGround) {
             this.pMeter = Math.min(this.pMeter + 2, SuperMario3Engine.P_METER_MAX);
         } else if (this.onGround) {
             this.pMeter = Math.max(this.pMeter - 1, 0);
+        } else if (!this.onGround && Math.abs(this.pvx) < SuperMario3Engine.MAX_RUN - 0.1) {
+            // Bug #14: P-meter drains in air when not at max speed
+            this.pMeter = Math.max(this.pMeter - 0.5, 0);
         }
 
         // Ducking
@@ -390,7 +424,9 @@ class SuperMario3Engine {
         if (this.jumpPressed) {
             this.jumpPressed = false;
             if (isUnderwater) {
-                this.pvy = SuperMario3Engine.SWIM_JUMP;
+                // Bug #18: Frog suit swim bonus
+                const swimJump = this.suit === 4 ? SuperMario3Engine.SWIM_JUMP * 1.5 : SuperMario3Engine.SWIM_JUMP;
+                this.pvy = swimJump;
                 nesAudio.playSFX('smb3_jump');
             } else if (this.onGround) {
                 // Flight from P-meter
@@ -417,7 +453,9 @@ class SuperMario3Engine {
 
         // Gravity
         if (isUnderwater) {
-            this.pvy += SuperMario3Engine.SWIM_GRAVITY;
+            // Bug #18: Frog suit reduced swim gravity
+            const swimGrav = this.suit === 4 ? SuperMario3Engine.SWIM_GRAVITY * 0.5 : SuperMario3Engine.SWIM_GRAVITY;
+            this.pvy += swimGrav;
             if (this.pvy > 2) this.pvy = 2;
         } else {
             // Raccoon/tanooki slow fall
@@ -476,6 +514,12 @@ class SuperMario3Engine {
     }
 
     // ========== COLLISION ==========
+
+    // Bug #8: Semi-solid check for clouds and bridges
+    isSemiSolid(tile) {
+        return tile === 13 || tile === 19; // CLOUD or BRIDGE
+    }
+
     // Supports both isSolid(tx, ty) and isSolid(tileValue) for entity compatibility
     isSolid(tx, ty) {
         if (ty === undefined) {
@@ -503,7 +547,8 @@ class SuperMario3Engine {
     get cameraY() { return this.camY; }
 
     addScore(points) { this.score += points; }
-    showScorePopup(x, y, text) { this.addParticle(x, y, 'score_popup'); }
+    // Bug #22: Pass text to score popup particle
+    showScorePopup(x, y, text) { this.addParticle(x, y, 'score_popup', text); }
 
     isLava(tx, ty) {
         if (tx < 0 || tx >= this.levelW || ty < 0 || ty >= this.levelH) return false;
@@ -530,6 +575,10 @@ class SuperMario3Engine {
         if (this.pvx > 0) {
             const tx = Math.floor((b.x + b.w) / T);
             for (let ty = ty1; ty <= ty2; ty++) {
+                if (tx < 0 || tx >= this.levelW || ty < 0 || ty >= this.levelH) continue;
+                const tile = this.getTile(tx, ty);
+                // Bug #8: Don't block horizontal movement through semi-solids
+                if (this.isSemiSolid(tile)) continue;
                 if (this.isSolid(tx, ty)) {
                     this.px = tx * T - b.w - 1;
                     this.pvx = 0;
@@ -539,6 +588,10 @@ class SuperMario3Engine {
         } else if (this.pvx < 0) {
             const tx = Math.floor(b.x / T);
             for (let ty = ty1; ty <= ty2; ty++) {
+                if (tx < 0 || tx >= this.levelW || ty < 0 || ty >= this.levelH) continue;
+                const tile = this.getTile(tx, ty);
+                // Bug #8: Don't block horizontal movement through semi-solids
+                if (this.isSemiSolid(tile)) continue;
                 if (this.isSolid(tx, ty)) {
                     this.px = (tx + 1) * T - 1;
                     this.pvx = 0;
@@ -560,9 +613,42 @@ class SuperMario3Engine {
             const ty = Math.floor((b.y + b.h) / T);
             for (let tx = tx1; tx <= tx2; tx++) {
                 if (this.isSolid(tx, ty)) {
+                    const tile = this.getTile(tx, ty);
+
+                    // Bug #15: Slope collision
+                    if (tile === 16 || tile === 17) {
+                        const tileLeft = tx * T;
+                        const tileBottom = (ty + 1) * T;
+                        const playerCenterX = b.x + b.w / 2;
+                        const playerXInTile = Math.max(0, Math.min(T, playerCenterX - tileLeft));
+                        let groundY;
+                        if (tile === 16) {
+                            // Left slope: high on right, low on left
+                            groundY = tileBottom - (playerXInTile / T) * T;
+                        } else {
+                            // Right slope: high on left, low on right
+                            groundY = tileBottom - ((T - playerXInTile) / T) * T;
+                        }
+                        const targetPy = groundY - b.h - (this.suit > 0 && !this.ducking ? 4 : 2);
+                        if (this.py + (this.suit > 0 && !this.ducking ? 4 : 2) + b.h >= groundY) {
+                            this.py = targetPy;
+                            this.pvy = 0;
+                            this.onGround = true;
+                        }
+                        break;
+                    }
+
                     this.py = ty * T - b.h - (this.suit > 0 && !this.ducking ? 4 : 2);
                     this.pvy = 0;
                     this.onGround = true;
+
+                    // Bug #7: Note block bounce from above
+                    if (tile === 6) {
+                        this.pvy = -6;
+                        this.onGround = false;
+                        nesAudio.playSFX('smb3_jump');
+                    }
+
                     break;
                 }
                 if (this.isLava(tx, ty)) {
@@ -573,6 +659,10 @@ class SuperMario3Engine {
         } else if (this.pvy < 0) {
             const ty = Math.floor(b.y / T);
             for (let tx = tx1; tx <= tx2; tx++) {
+                if (tx < 0 || tx >= this.levelW || ty < 0 || ty >= this.levelH) continue;
+                const tile = this.getTile(tx, ty);
+                // Bug #8: Don't block upward movement through semi-solids
+                if (this.isSemiSolid(tile)) continue;
                 if (this.isSolid(tx, ty)) {
                     this.py = (ty + 1) * T - (this.suit > 0 && !this.ducking ? 4 : 2);
                     this.pvy = 0;
@@ -694,6 +784,12 @@ class SuperMario3Engine {
             }
             if (!e.activated) continue;
 
+            // Bug #20: Deactivate entities that have scrolled off behind camera
+            if (e.x < this.camX - 64 && e.activated) {
+                e.active = false;
+                continue;
+            }
+
             e.update(this);
 
             // Off screen removal (below level)
@@ -751,6 +847,9 @@ class SuperMario3Engine {
                     continue;
                 }
             }
+
+            // Bug #10: Skip damage for shells with active kick timer
+            if (e.shellKickTimer > 0) continue;
 
             // Player takes damage (only from dangerous enemies)
             if (e.isDangerous && this.invincible <= 0) {
@@ -836,6 +935,7 @@ class SuperMario3Engine {
         this.suit = 0;
         this.flying = false;
         this.pMeter = 0;
+        this.statueTimer = 0;
         this.needsSwitch = this.twoPlayer;
         nesAudio.stopMusic();
     }
@@ -865,19 +965,19 @@ class SuperMario3Engine {
             this.nodesCleared[this.levelNodeId] = true;
 
             // Check if world complete (airship cleared)
+            // Bug #4: For World 8, don't advance on airship clear (Bowser's Castle comes after)
             const world = Mario3Levels.worlds[this.currentWorld];
+            const clearedNode = world?.nodes.find(n => n.id === this.levelNodeId);
             const airshipNode = world?.nodes.find(n => n.type === 'airship');
-            if (airshipNode && this.nodesCleared[airshipNode.id]) {
+            if (airshipNode && this.nodesCleared[airshipNode.id] && clearedNode?.type === 'airship' && this.currentWorld < 7) {
                 this.worldCleared[this.currentWorld] = true;
                 // Advance to next world
-                if (this.currentWorld < 7) {
-                    this.currentWorld++;
-                    this.mapCursor = 0;
-                } else {
-                    // Game complete!
-                    this.gameState = 'victory';
-                    return;
-                }
+                this.currentWorld++;
+                this.mapCursor = 0;
+            } else if (this.levelData?.isFinalBoss) {
+                // Game complete! (World 8 Bowser's Castle)
+                this.gameState = 'victory';
+                return;
             } else {
                 // Find next uncleared node
                 if (world) {
@@ -950,8 +1050,9 @@ class SuperMario3Engine {
     }
 
     // ========== PARTICLES ==========
-    addParticle(x, y, type) {
-        this.particles.push({ x, y, type, timer: 30, vx: 0, vy: -2 });
+    // Bug #22: Accept optional text for score popups
+    addParticle(x, y, type, text) {
+        this.particles.push({ x, y, type, timer: 30, vx: 0, vy: -2, text: text || '' });
     }
 
     updateParticles() {
@@ -989,11 +1090,11 @@ class SuperMario3Engine {
     // ========== FIREBALLS (Hammer suit throws hammers) ==========
     throwFireball() {
         if (this.suit === 2) {
-            // Fire
+            // Fire - Bug #6: add vy: 1 for bounce
             const fx = this.px + (this.pdir > 0 ? 12 : -4);
             const fy = this.py + 8;
             this.entities.push(Mario3Entities.create('fireball3', fx, fy, {
-                dir: this.pdir, isPlayerFireball: true
+                dir: this.pdir, isPlayerFireball: true, vy: 1
             }));
             nesAudio.playSFX('smb3_fireball');
         } else if (this.suit === 6) {
@@ -1073,7 +1174,8 @@ class SuperMario3Engine {
                 ctx.fillStyle = '#080';
                 ctx.fillRect(n.x - 4, n.y - 4, 8, 8);
             } else if (n.type === 'fortress') {
-                ctx.fillStyle = cleared ? '#888' : '#888';
+                // Bug #17: Fortress cleared vs uncleared color differentiation
+                ctx.fillStyle = cleared ? '#555' : '#888';
                 ctx.fillRect(n.x - 8, n.y - 12, 16, 16);
                 // Tower
                 ctx.fillRect(n.x - 4, n.y - 18, 8, 8);
@@ -1182,20 +1284,35 @@ class SuperMario3Engine {
             const psy = this.py - this.camY;
             if (this.invincible > 0 && this.frameCount % 4 < 2) {
                 // Flash when invincible (skip drawing)
+            } else if (this.statueTimer > 0) {
+                // Bug #19: Draw tanooki statue as gray rectangle
+                ctx.fillStyle = '#888';
+                ctx.fillRect(psx + 2, psy + 4, 12, 24);
+                ctx.fillStyle = '#666';
+                ctx.fillRect(psx + 4, psy + 6, 8, 20);
             } else {
                 const palette = { outfit: '#B13425', outfitDark: '#6B1C11', hair: '#FFE040', skin: '#FCA044', eyes: '#3070E0', shirt: '#6B8CFF' };
                 const suitNames = ['small', 'big', 'fire', 'raccoon', 'frog', 'tanooki', 'hammer'];
+                // Bug #16: Pass ducking flag to drawPlayer
                 Mario3Renderer.drawPlayer(ctx, psx, psy, palette,
-                    this.walkFrame, this.pdir, suitNames[this.suit] || 'small', this.starPower > 0, this.frameCount);
+                    this.walkFrame, this.pdir, suitNames[this.suit] || 'small', this.starPower > 0, this.frameCount, this.ducking);
             }
         }
 
-        // Draw particles
+        // Bug #22: Draw particles with score text
         for (const p of this.particles) {
             const sx = p.x - this.camX;
             const sy = p.y - this.camY;
-            ctx.fillStyle = '#FFF';
-            ctx.fillRect(sx, sy, 4, 4);
+            if (p.type === 'score_popup' && p.text) {
+                ctx.fillStyle = '#FFF';
+                ctx.font = '8px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText(p.text, sx + 8, sy + 4);
+                ctx.textAlign = 'left';
+            } else {
+                ctx.fillStyle = '#FFF';
+                ctx.fillRect(sx, sy, 4, 4);
+            }
         }
 
         // HUD
