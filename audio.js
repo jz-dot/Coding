@@ -172,6 +172,12 @@ class NESAudio {
         this.musicNodes = [];
     }
 
+    // Clean up finished nodes to prevent memory leak, called at each loop restart
+    _cleanupNodes() {
+        this.musicNodes.forEach(n => { try { n.stop(); } catch(e){} });
+        this.musicNodes = [];
+    }
+
     playMusic(game, type) {
         this.init();
         this.stopMusic();
@@ -194,6 +200,7 @@ class NESAudio {
     // Tetris Music A - Korobeiniki (authentic NES arrangement)
     playTetrisMusicA() {
         if (!this.musicPlaying) return;
+        this._cleanupNodes();
         const t = this.ctx.currentTime;
         const bpm = 150;
         const beat = 60 / bpm;
@@ -280,6 +287,7 @@ class NESAudio {
     // Tetris Music B - Arranged version of the NES B-type music
     playTetrisMusicB() {
         if (!this.musicPlaying) return;
+        this._cleanupNodes();
         const t = this.ctx.currentTime;
         const bpm = 120;
         const beat = 60 / bpm;
@@ -334,6 +342,7 @@ class NESAudio {
     // Tetris Music C - Arrangement inspired by NES Tetris C-type
     playTetrisMusicC() {
         if (!this.musicPlaying) return;
+        this._cleanupNodes();
         const t = this.ctx.currentTime;
         const bpm = 108;
         const beat = 60 / bpm;
@@ -384,6 +393,7 @@ class NESAudio {
     // Dr. Mario - Fever theme (NES authentic melody)
     playDrMarioFever() {
         if (!this.musicPlaying) return;
+        this._cleanupNodes();
         const t = this.ctx.currentTime;
         const bpm = 155;
         const beat = 60 / bpm;
@@ -475,6 +485,7 @@ class NESAudio {
     // Dr. Mario - Chill theme (NES authentic melody - reggae feel)
     playDrMarioChill() {
         if (!this.musicPlaying) return;
+        this._cleanupNodes();
         const t = this.ctx.currentTime;
         const bpm = 104;
         const beat = 60 / bpm;

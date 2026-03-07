@@ -205,12 +205,13 @@
     function returnToMenu() {
         nesAudio.stopMusic();
         hideOverlays();
+        clearKeys();
         document.getElementById('top-bar').style.display = 'none';
         document.getElementById('exit-modal').style.display = 'none';
         document.getElementById('game-screen').classList.remove('game-playing');
         // Restore canvas for title screen
         canvas.width = 200;
-        canvas.height = 360;
+        canvas.height = 400;
         canvas.style.width = '';
         canvas.style.height = '';
         const layout = document.querySelector('.game-layout');
@@ -221,11 +222,17 @@
         gameState = 'title';
     }
 
+    function clearKeys() {
+        Object.keys(keys).forEach(k => delete keys[k]);
+    }
+
     function startGame(numPlayers) {
         nesAudio.init();
+        clearKeys();
         showScreen('game-screen');
         document.getElementById('game-screen').classList.add('game-playing');
         gameState = 'playing';
+        twoPlayer = false; // reset, will be set below for mario games
         setupCanvasForGame();
 
         // Show top bar with game name
@@ -812,6 +819,8 @@
     // In-game menu button -> show exit confirmation
     document.getElementById('btn-menu-ingame').addEventListener('click', () => {
         if (gameState !== 'playing') return;
+        // Don't show exit modal if game over overlay is visible
+        if (engine.gameOver) { returnToMenu(); return; }
         // Pause the game
         if (!engine.paused && !engine.gameOver) {
             engine.paused = true;

@@ -159,8 +159,10 @@ class SuperMario3Engine {
                 const targetIdx = world.nodes.indexOf(targetNode);
                 // Can always move to cleared nodes or the next uncleared one
                 const prevNodeId = world.nodes[targetIdx - 1]?.id;
+                const prevNode = world.nodes[targetIdx - 1];
+                const prevIsStart = prevNode && prevNode.type === 'start';
                 if (targetIdx === 0 || this.nodesCleared[targetNode.id] ||
-                    this.nodesCleared[prevNodeId] || targetNode.type === 'start') {
+                    this.nodesCleared[prevNodeId] || prevIsStart || targetNode.type === 'start') {
                     this.mapCursor = targetIdx;
                     nesAudio.playSFX('smb3_mapMove');
                     break;
@@ -188,6 +190,8 @@ class SuperMario3Engine {
     startLevel(levelData, nodeId) {
         this.levelData = levelData;
         this.levelNodeId = nodeId;
+        this._bossActivated = false;
+        this._bossDefeated = false;
         this.tiles = [];
         // Deep copy tiles
         for (let x = 0; x < levelData.width; x++) {
@@ -478,13 +482,13 @@ class SuperMario3Engine {
             // Called as isSolid(tileValue) from entities
             const t = tx;
             if (t === undefined || t === null) return false;
-            return t >= 1 && t <= 10 || t === 12 || t === 13 || t === 15 || t === 18;
+            return (t >= 1 && t <= 10) || t === 12 || t === 13 || t === 15 || t === 16 || t === 17 || t === 18 || t === 19;
         }
         if (tx < 0 || tx >= this.levelW || ty < 0 || ty >= this.levelH) {
             return ty >= this.levelH; // bottom is solid
         }
         const t = this.tiles[tx][ty];
-        return t >= 1 && t <= 10 || t === 12 || t === 13 || t === 15 || t === 18;
+        return (t >= 1 && t <= 10) || t === 12 || t === 13 || t === 15 || t === 16 || t === 17 || t === 18 || t === 19;
         // ground, brick, qblock, used, wood, note, pipes, ice, cloud, castle, stair
     }
 
@@ -1179,7 +1183,7 @@ class SuperMario3Engine {
             if (this.invincible > 0 && this.frameCount % 4 < 2) {
                 // Flash when invincible (skip drawing)
             } else {
-                const palette = { body: '#F00', overall: '#00F', hair: '#FFE040', skin: '#FFCC88' };
+                const palette = { outfit: '#B13425', outfitDark: '#6B1C11', hair: '#FFE040', skin: '#FCA044', eyes: '#3070E0', shirt: '#6B8CFF' };
                 const suitNames = ['small', 'big', 'fire', 'raccoon', 'frog', 'tanooki', 'hammer'];
                 Mario3Renderer.drawPlayer(ctx, psx, psy, palette,
                     this.walkFrame, this.pdir, suitNames[this.suit] || 'small', this.starPower > 0, this.frameCount);

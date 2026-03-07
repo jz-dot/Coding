@@ -418,7 +418,8 @@ class TetrisEngine {
 
         // Gravity
         this.gravityCounter++;
-        const speed = this.softDropping ? 2 : this.getGravity();
+        const gravity = this.getGravity();
+        const speed = this.softDropping ? Math.min(2, gravity) : gravity;
 
         if (this.gravityCounter >= speed) {
             this.gravityCounter = 0;
@@ -467,11 +468,11 @@ class TetrisEngine {
         const ch = ctx.canvas.height;
 
         // Calculate cell size to fit board + border walls inside the canvas
-        const wallW = 4; // wall thickness in cells fraction
-        const cs = Math.min((cw - wallW * 2) / this.COLS, (ch - wallW * 2) / (this.ROWS + 1));
+        const bwRatio = 0.3; // wall thickness as fraction of cell size
+        const cs = Math.min(cw / (this.COLS + bwRatio * 2), ch / (this.ROWS + bwRatio));
         const boardW = this.COLS * cs;
         const boardH = this.ROWS * cs;
-        const bw = cs * 0.3; // border wall pixel thickness
+        const bw = cs * bwRatio; // border wall pixel thickness
         const ox = (cw - boardW) / 2;
         const oy = (ch - boardH - bw) / 2;
 

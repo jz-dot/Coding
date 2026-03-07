@@ -607,17 +607,37 @@ class BulletBill3 extends SMB3Entity {
 class Fireball3 extends SMB3Entity {
     constructor(x, y, opts) {
         super('fireball3', x, y);
-        this.isEnemy = true; this.isDangerous = true;
+        this.isPlayerFireball = opts.isPlayerFireball || false;
+        this.isEnemy = !this.isPlayerFireball;
+        this.isDangerous = !this.isPlayerFireball;
         this.canBeStomp = false;
         this.width = 8; this.height = 8;
         this.vx = (opts.dir || -1) * 2.5;
+        this.vy = opts.vy || 0;
         this.big = opts.big || false;
+        this.isHammer = opts.isHammer || false;
         if (this.big) { this.width = 16; this.height = 16; }
     }
     update(engine) {
         super.update(engine);
         this.x += this.vx;
-        if (this.x < engine.cameraX - 32 || this.x > engine.cameraX + 280) this.active = false;
+        if (this.vy) { this.y += this.vy; this.vy += 0.2; } // gravity for hammers
+        if (this.x < engine.camX - 32 || this.x > engine.camX + 280) this.active = false;
+        if (this.y > 256) this.active = false;
+        // Player fireballs damage enemies
+        if (this.isPlayerFireball) {
+            for (const e of engine.entities) {
+                if (e === this || !e.active || !e.isEnemy || e.isPlayerFireball) continue;
+                if (this.x < e.x + e.width && this.x + this.width > e.x &&
+                    this.y < e.y + e.height && this.y + this.height > e.y) {
+                    if (typeof e.hitByFireball === 'function') e.hitByFireball(engine);
+                    else if (typeof e.die === 'function') e.die();
+                    this.active = false;
+                    engine.score += 100;
+                    break;
+                }
+            }
+        }
     }
     render(ctx, sx, sy, frame) {
         const f = Math.floor(frame / 3) % 2;
