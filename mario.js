@@ -1027,9 +1027,10 @@ class SuperMarioEngine {
         // Camera
         this.updateCamera();
 
-        // Animation
+        // Animation - speed scales with player velocity like NES SMB
         this.animCounter++;
-        if (this.animCounter >= 6) {
+        const animSpeed = Math.abs(this.playerVX) > this.WALK_MAX ? 3 : 6;
+        if (this.animCounter >= animSpeed) {
             this.animCounter = 0;
             if (Math.abs(this.playerVX) > 0.1 && this.grounded) {
                 this.animFrame = (this.animFrame + 1) % 3;

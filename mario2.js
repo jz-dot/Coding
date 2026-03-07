@@ -44,8 +44,8 @@ class SuperMario2Engine {
         this.playerY = 192;
         this.playerVX = 0;
         this.playerVY = 0;
-        this.playerW = 14;
-        this.playerH = 22;
+        this.playerW = 16;
+        this.playerH = 24;
         this.playerDir = 1;
         this.grounded = false;
         this.groundedTimer = 0;
@@ -295,17 +295,46 @@ class SuperMario2Engine {
         const pw = this.playerW;
         const ph = this.playerH;
 
-        // Ground
-        const feetRow = Math.floor((this.playerY + ph) / T);
+        // --- HORIZONTAL COLLISION (X-axis first, like NES) ---
+        const inset = 2;
+        let topRow = Math.floor((this.playerY + inset) / T);
+        let bottomRow = Math.floor((this.playerY + ph - 1 - inset) / T);
+
+        if (this.playerVX < 0) {
+            const leftCol = Math.floor(this.playerX / T);
+            for (let r = topRow; r <= bottomRow; r++) {
+                if (this.isSolid(this.getTile(leftCol, r))) {
+                    this.playerX = (leftCol + 1) * T;
+                    this.playerVX = 0;
+                    break;
+                }
+            }
+        } else if (this.playerVX > 0) {
+            const rightCol = Math.floor((this.playerX + pw - 1) / T);
+            for (let r = topRow; r <= bottomRow; r++) {
+                if (this.isSolid(this.getTile(rightCol, r))) {
+                    this.playerX = rightCol * T - pw;
+                    this.playerVX = 0;
+                    break;
+                }
+            }
+        }
+
+        // --- VERTICAL COLLISION (Y-axis) --- recalculate columns after X resolved
         const leftCol = Math.floor(this.playerX / T);
         const rightCol = Math.floor((this.playerX + pw - 1) / T);
-        let onGround = false;
 
-        for (let c = leftCol; c <= rightCol; c++) {
-            if (this.isSolid(this.getTile(c, feetRow))) {
-                onGround = true;
-                this.playerY = feetRow * T - ph;
-                this.playerVY = 0;
+        // Ground (feet)
+        let onGround = false;
+        if (this.playerVY >= 0) {
+            const feetRow = Math.floor((this.playerY + ph) / T);
+            for (let c = leftCol; c <= rightCol; c++) {
+                if (this.isSolid(this.getTile(c, feetRow))) {
+                    onGround = true;
+                    this.playerY = feetRow * T - ph;
+                    this.playerVY = 0;
+                    break;
+                }
             }
         }
 
@@ -325,25 +354,8 @@ class SuperMario2Engine {
                 if (this.isSolid(this.getTile(c, headRow))) {
                     this.playerY = (headRow + 1) * T;
                     this.playerVY = 0;
+                    break;
                 }
-            }
-        }
-
-        // Walls
-        const topRow = Math.floor(this.playerY / T);
-        const bottomRow = Math.floor((this.playerY + ph - 1) / T);
-        const newLeftCol = Math.floor(this.playerX / T);
-        for (let r = topRow; r <= bottomRow; r++) {
-            if (this.isSolid(this.getTile(newLeftCol, r))) {
-                this.playerX = (newLeftCol + 1) * T;
-                if (this.playerVX < 0) this.playerVX = 0;
-            }
-        }
-        const newRightCol = Math.floor((this.playerX + pw - 1) / T);
-        for (let r = topRow; r <= bottomRow; r++) {
-            if (this.isSolid(this.getTile(newRightCol, r))) {
-                this.playerX = newRightCol * T - pw;
-                if (this.playerVX > 0) this.playerVX = 0;
             }
         }
 
@@ -569,9 +581,10 @@ class SuperMario2Engine {
         // Camera
         this.updateCamera();
 
-        // Animation
+        // Animation - speed scales with player velocity
         this.animCounter++;
-        if (this.animCounter >= 6) {
+        const animSpeed = Math.abs(this.playerVX) > this.charStats.speed ? 3 : 6;
+        if (this.animCounter >= animSpeed) {
             this.animCounter = 0;
             if (Math.abs(this.playerVX) > 0.1 && this.grounded) {
                 this.animFrame = (this.animFrame + 1) % 3;
@@ -580,7 +593,7 @@ class SuperMario2Engine {
     }
 
     updatePlayer() {
-        const maxSpeed = this.running ? this.RUN_MAX : this.charStats.speed;
+        const maxSpeed = (this.running || this.inputRun) ? this.RUN_MAX : this.charStats.speed;
 
         // Ice physics: reduce friction/accel when on ice
         const T = this.TILE;

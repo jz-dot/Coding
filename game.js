@@ -611,7 +611,6 @@
                 case 'ShiftLeft':
                 case 'ShiftRight':
                     engine.pressRun();
-                    if (engine.suit === 2 || engine.suit === 6) engine.throwFireball();
                     break;
                 case 'KeyP':
                     engine.paused = true;
