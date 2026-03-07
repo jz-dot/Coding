@@ -86,18 +86,34 @@ class MarioEntity {
 
     // Basic tile collision for entities
     applyGravity(engine) {
-        this.vy += 0.3;
-        if (this.vy > 4) this.vy = 4;
+        this.vy += 0.4;
+        if (this.vy > 5) this.vy = 5;
         this.y += this.vy;
 
-        // Ground check
+        // Ground check - check both left and right sides of entity
         const T = 16;
         const feetRow = Math.floor((this.y + this.height) / T);
-        const col = Math.floor((this.x + this.width / 2) / T);
-        const tile = engine.getTile(col, feetRow);
-        if (engine.isSolid(tile)) {
-            this.y = feetRow * T - this.height;
-            this.vy = 0;
+        const leftCol = Math.floor(this.x / T);
+        const rightCol = Math.floor((this.x + this.width - 1) / T);
+        let grounded = false;
+        for (let c = leftCol; c <= rightCol; c++) {
+            if (engine.isSolid(engine.getTile(c, feetRow))) {
+                this.y = feetRow * T - this.height;
+                this.vy = 0;
+                grounded = true;
+                break;
+            }
+        }
+        // Also check if embedded (tunneling protection)
+        if (!grounded) {
+            const embedRow = Math.floor((this.y + this.height - 1) / T);
+            for (let c = leftCol; c <= rightCol; c++) {
+                if (engine.isSolid(engine.getTile(c, embedRow))) {
+                    this.y = embedRow * T - this.height;
+                    this.vy = 0;
+                    break;
+                }
+            }
         }
 
         // Off screen
@@ -109,22 +125,32 @@ class MarioEntity {
     applyMovement(engine) {
         this.x += this.vx;
 
-        // Wall collision
+        // Wall collision - check multiple rows for tall entities
         const T = 16;
-        const row = Math.floor((this.y + this.height / 2) / T);
+        const topRow = Math.floor((this.y + 2) / T);
+        const midRow = Math.floor((this.y + this.height / 2) / T);
+        const botRow = Math.floor((this.y + this.height - 2) / T);
+        const checkRows = [topRow, midRow, botRow];
+
         if (this.vx < 0) {
             const col = Math.floor(this.x / T);
-            if (engine.isSolid(engine.getTile(col, row))) {
-                this.x = (col + 1) * T;
-                this.vx = -this.vx;
-                this.direction = 1;
+            for (const row of checkRows) {
+                if (engine.isSolid(engine.getTile(col, row))) {
+                    this.x = (col + 1) * T;
+                    this.vx = -this.vx;
+                    this.direction = 1;
+                    break;
+                }
             }
         } else if (this.vx > 0) {
             const col = Math.floor((this.x + this.width) / T);
-            if (engine.isSolid(engine.getTile(col, row))) {
-                this.x = col * T - this.width;
-                this.vx = -this.vx;
-                this.direction = -1;
+            for (const row of checkRows) {
+                if (engine.isSolid(engine.getTile(col, row))) {
+                    this.x = col * T - this.width;
+                    this.vx = -this.vx;
+                    this.direction = -1;
+                    break;
+                }
             }
         }
     }

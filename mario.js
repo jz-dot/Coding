@@ -8,21 +8,22 @@ class SuperMarioEngine {
         this.SCREEN_W = 256;
         this.SCREEN_H = 240;
         this.TILE = 16;
-        this.GRAVITY = 0.4375;
-        this.MAX_FALL = 4.5;
-        this.WALK_ACCEL = 0.09375;
-        this.RUN_ACCEL = 0.09375;
-        this.WALK_MAX = 1.5;
-        this.RUN_MAX = 2.5;
-        this.FRICTION = 0.09375;
-        this.SKID_DECEL = 0.15;
+        // NES SMB authentic physics (values from disassembly, converted to px/frame)
+        this.GRAVITY = 0.7;          // Normal falling gravity
+        this.MAX_FALL = 5.0;
+        this.WALK_ACCEL = 0.098;
+        this.RUN_ACCEL = 0.14;
+        this.WALK_MAX = 1.5625;
+        this.RUN_MAX = 2.5625;
+        this.FRICTION = 0.098;
+        this.SKID_DECEL = 0.2;
 
-        // Jump physics: 3 tiers based on speed
-        this.JUMP_VEL_STAND = -4.0;
-        this.JUMP_VEL_WALK = -4.0;
+        // Jump physics: NES SMB uses different gravity when holding vs releasing jump
+        this.JUMP_VEL_STAND = -4.1;
+        this.JUMP_VEL_WALK = -4.1;
         this.JUMP_VEL_RUN = -5.0;
-        this.JUMP_GRAVITY_HELD = 0.2; // reduced gravity while holding jump
-        this.JUMP_GRAVITY_RELEASE = 0.5;
+        this.JUMP_GRAVITY_HELD = 0.2;    // Low gravity while holding jump (gives height control)
+        this.JUMP_GRAVITY_RELEASE = 0.7; // Full gravity when jump released (snappy descent)
 
         // Swim physics
         this.SWIM_GRAVITY = 0.1;
@@ -168,9 +169,12 @@ class SuperMarioEngine {
         this.maxCameraX = Math.max(0, this.levelWidth * this.TILE - this.SCREEN_W);
 
         // Reset player position
+        // Tile grid rows 0-12 map to screen rows 2-14 (rows 0-1 are HUD)
+        // So screen pixel Y = (tileRow + 2) * TILE
         const spawn = data.spawn || { x: 3, y: 11 };
         this.playerX = spawn.x * this.TILE;
-        this.playerY = (spawn.y - (this.playerState !== 'small' ? 1 : 0)) * this.TILE + 32; // +32 for HUD offset
+        const spawnScreenRow = spawn.y + 2; // convert tile row to screen row
+        this.playerY = spawnScreenRow * this.TILE - this.playerH; // feet on top of spawn row
         this.playerVX = 0;
         this.playerVY = 0;
         this.cameraX = 0;
@@ -192,15 +196,17 @@ class SuperMarioEngine {
 
         if (data.entities) {
             for (const e of data.entities) {
-                this.entities.push(MarioEntities.create(e.type, e.col * this.TILE, (e.row + 2) * this.TILE, e));
+                // Entity row is tile row. Screen row = tileRow + 2. Pixel Y = screenRow * TILE.
+                const entityScreenY = (e.row + 2) * this.TILE;
+                this.entities.push(MarioEntities.create(e.type, e.col * this.TILE, entityScreenY, e));
             }
         }
 
         this.flagY = 0;
         this.flagBaseY = 0;
         if (data.flagpole) {
-            this.flagY = 3 * this.TILE + 32; // top of flagpole
-            this.flagBaseY = 12 * this.TILE + 32;
+            this.flagY = (3 + 2) * this.TILE;  // tile row 3 -> screen row 5
+            this.flagBaseY = (12 + 2) * this.TILE; // tile row 12 -> screen row 14
         }
     }
 
@@ -323,30 +329,67 @@ class SuperMarioEngine {
 
     // ---- COLLISION ----
 
-    // Player -> Tile collision
+    // Player -> Tile collision (fixed order: X first, then Y, with fresh bounds each time)
     collideTiles() {
         const T = this.TILE;
-        const px = this.playerX;
-        const py = this.playerY;
         const pw = this.playerW;
         const ph = this.playerH;
 
-        // Horizontal collision
-        const leftCol = Math.floor(px / T);
-        const rightCol = Math.floor((px + pw - 1) / T);
-        const topRow = Math.floor(py / T);
-        const bottomRow = Math.floor((py + ph - 1) / T);
+        // --- HORIZONTAL COLLISION (X-axis) ---
+        // Use a slightly inset hitbox vertically to avoid catching on edges
+        const inset = 2;
+        let topRow = Math.floor((this.playerY + inset) / T);
+        let bottomRow = Math.floor((this.playerY + ph - 1 - inset) / T);
 
-        // Check feet (ground)
-        const feetRow = Math.floor((py + ph) / T);
+        if (this.playerVX < 0) {
+            // Moving left - check left edge
+            const leftCol = Math.floor(this.playerX / T);
+            for (let r = topRow; r <= bottomRow; r++) {
+                if (this.isSolid(this.getTile(leftCol, r))) {
+                    this.playerX = (leftCol + 1) * T;
+                    this.playerVX = 0;
+                    break;
+                }
+            }
+        } else if (this.playerVX > 0) {
+            // Moving right - check right edge
+            const rightCol = Math.floor((this.playerX + pw - 1) / T);
+            for (let r = topRow; r <= bottomRow; r++) {
+                if (this.isSolid(this.getTile(rightCol, r))) {
+                    this.playerX = rightCol * T - pw;
+                    this.playerVX = 0;
+                    break;
+                }
+            }
+        }
+
+        // --- VERTICAL COLLISION (Y-axis) --- recalculate columns after X resolved
+        const leftCol = Math.floor(this.playerX / T);
+        const rightCol = Math.floor((this.playerX + pw - 1) / T);
+
+        // Check ground (feet) - falling or standing
         let onGround = false;
-
-        for (let c = leftCol; c <= rightCol; c++) {
-            const tile = this.getTile(c, feetRow);
-            if (this.isSolid(tile)) {
-                onGround = true;
-                this.playerY = feetRow * T - ph;
-                this.playerVY = 0;
+        if (this.playerVY >= 0) {
+            const feetRow = Math.floor((this.playerY + ph) / T);
+            for (let c = leftCol; c <= rightCol; c++) {
+                if (this.isSolid(this.getTile(c, feetRow))) {
+                    onGround = true;
+                    this.playerY = feetRow * T - ph;
+                    this.playerVY = 0;
+                    break;
+                }
+            }
+            // Also check if we're embedded in a tile (fast fall tunneling protection)
+            if (!onGround) {
+                const embedRow = Math.floor((this.playerY + ph - 1) / T);
+                for (let c = leftCol; c <= rightCol; c++) {
+                    if (this.isSolid(this.getTile(c, embedRow))) {
+                        onGround = true;
+                        this.playerY = embedRow * T - ph;
+                        this.playerVY = 0;
+                        break;
+                    }
+                }
             }
         }
 
@@ -356,40 +399,23 @@ class SuperMarioEngine {
             this.stompChain = 0;
         }
 
-        // Check head (bonk blocks from below)
+        // Check head (bonk blocks from below) - only when moving up
         if (this.playerVY < 0) {
-            const headRow = Math.floor(py / T);
+            const headRow = Math.floor(this.playerY / T);
             for (let c = leftCol; c <= rightCol; c++) {
                 const tile = this.getTile(c, headRow);
                 if (this.isSolid(tile)) {
                     this.playerY = (headRow + 1) * T;
                     this.playerVY = 0;
                     this.bonkBlock(c, headRow, tile);
+                    break;
                 }
             }
         }
 
-        // Check left wall
-        const newLeftCol = Math.floor(px / T);
-        for (let r = topRow; r <= bottomRow; r++) {
-            const tile = this.getTile(newLeftCol, r);
-            if (this.isSolid(tile)) {
-                this.playerX = (newLeftCol + 1) * T;
-                if (this.playerVX < 0) this.playerVX = 0;
-            }
-        }
-
-        // Check right wall
-        const newRightCol = Math.floor((this.playerX + pw - 1) / T);
-        for (let r = topRow; r <= bottomRow; r++) {
-            const tile = this.getTile(newRightCol, r);
-            if (this.isSolid(tile)) {
-                this.playerX = newRightCol * T - pw;
-                if (this.playerVX > 0) this.playerVX = 0;
-            }
-        }
-
-        // Collect coins
+        // --- COIN COLLECTION ---
+        topRow = Math.floor(this.playerY / T);
+        bottomRow = Math.floor((this.playerY + ph - 1) / T);
         for (let r = topRow; r <= bottomRow; r++) {
             for (let c = leftCol; c <= rightCol; c++) {
                 const tile = this.getTile(c, r);
@@ -400,13 +426,18 @@ class SuperMarioEngine {
             }
         }
 
-        // Check pipe entry
+        // --- PIPE ENTRY ---
         if (this.inputDown && this.grounded && !this.pipeTransition) {
-            const pipeCol = Math.floor((px + pw / 2) / T);
-            const pipeRow = feetRow;
+            const playerCenterCol = Math.floor((this.playerX + pw / 2) / T);
             if (this.levelData && this.levelData.pipes) {
                 for (const pipe of this.levelData.pipes) {
-                    if (Math.abs(pipeCol - pipe.enterCol) <= 1 && Math.abs(feetRow - 1 - pipe.enterRow) <= 1) {
+                    // Player must be standing on/near the pipe entrance
+                    // enterCol is the left tile of the pipe, pipe is 2 tiles wide
+                    const onPipeX = playerCenterCol >= pipe.enterCol && playerCenterCol <= pipe.enterCol + 1;
+                    const pipeEnterScreenRow = pipe.enterRow + 2;
+                    const feetRow = Math.floor((this.playerY + ph) / T);
+                    const onPipeY = feetRow === pipeEnterScreenRow || feetRow === pipeEnterScreenRow + 1;
+                    if (onPipeX && onPipeY) {
                         this.enterPipe(pipe);
                         break;
                     }
@@ -414,18 +445,18 @@ class SuperMarioEngine {
             }
         }
 
-        // Check axe (castle)
-        if (this.levelData && this.levelData.axe) {
+        // --- AXE CHECK (castle) ---
+        if (this.levelData && this.levelData.axe && !this.bowserDefeated) {
             const axeCol = this.levelData.axe.col;
             const axeRow = this.levelData.axe.row + 2;
-            const playerCol = Math.floor((px + pw / 2) / T);
-            const playerRow = Math.floor((py + ph / 2) / T);
-            if (Math.abs(playerCol - axeCol) <= 1 && Math.abs(playerRow - axeRow) <= 1 && !this.bowserDefeated) {
+            const playerCol = Math.floor((this.playerX + pw / 2) / T);
+            const playerRow = Math.floor((this.playerY + ph / 2) / T);
+            if (Math.abs(playerCol - axeCol) <= 1 && Math.abs(playerRow - axeRow) <= 1) {
                 this.defeatBowser();
             }
         }
 
-        // Fall into pit
+        // --- PIT DEATH ---
         if (this.playerY > this.SCREEN_H + 16) {
             this.die();
         }
@@ -574,12 +605,12 @@ class SuperMarioEngine {
             this.loadLevel(pipe.exitWorld, pipe.exitStage);
             if (pipe.exitCol !== undefined) {
                 this.playerX = pipe.exitCol * this.TILE;
-                this.playerY = (pipe.exitRow + 2) * this.TILE;
+                this.playerY = (pipe.exitRow + 2) * this.TILE - this.playerH;
             }
         } else if (pipe.exitCol !== undefined) {
             // Same level warp
             this.playerX = pipe.exitCol * this.TILE;
-            this.playerY = (pipe.exitRow + 2) * this.TILE;
+            this.playerY = (pipe.exitRow + 2) * this.TILE - this.playerH;
             if (pipe.exitCameraX !== undefined) {
                 this.cameraX = pipe.exitCameraX;
             }
@@ -607,8 +638,8 @@ class SuperMarioEngine {
             this.playerVY = 0;
 
             // Score based on height
-            const poleTop = 3 * this.TILE + 32;
-            const poleBot = 12 * this.TILE + 32;
+            const poleTop = (3 + 2) * this.TILE;
+            const poleBot = (12 + 2) * this.TILE;
             const ratio = 1 - (this.playerY - poleTop) / (poleBot - poleTop);
             const idx = Math.min(4, Math.floor(ratio * 5));
             const points = this.FLAGPOLE_SCORES[Math.max(0, idx)];
@@ -754,9 +785,10 @@ class SuperMarioEngine {
             if (e.isEnemy) {
                 // Check if stomping (player moving down, feet near top of enemy)
                 const playerBottom = this.playerY + this.playerH;
-                const playerWasFalling = this.playerVY > 0;
+                const playerWasFalling = this.playerVY >= 0;
 
-                if (playerWasFalling && playerBottom - e.y < 10 && e.canBeStomp) {
+                // NES SMB stomp: player's feet must be above the enemy's vertical midpoint
+                if (playerWasFalling && playerBottom <= e.y + e.height * 0.6 && e.canBeStomp) {
                     // Stomp!
                     e.onStomp(this);
                     this.playerVY = -3; // bounce
@@ -1045,14 +1077,19 @@ class SuperMarioEngine {
             this.playerVX = 0;
         }
 
-        // Gravity
+        // Gravity - NES SMB: holding jump reduces gravity for higher jumps
         if (this.underwater) {
             this.playerVY += this.SWIM_GRAVITY;
             if (this.playerVY > this.SWIM_MAX_FALL) this.playerVY = this.SWIM_MAX_FALL;
         } else {
-            if (this.jumping && this.jumpHeld && this.playerVY < 0) {
+            if (this.jumpHeld && this.playerVY < 0) {
+                // Holding jump button while ascending = reduced gravity (higher jump)
                 this.playerVY += this.JUMP_GRAVITY_HELD;
+            } else if (this.playerVY < 0) {
+                // Released jump while ascending = quick gravity (cut jump short)
+                this.playerVY += this.JUMP_GRAVITY_RELEASE;
             } else {
+                // Falling = normal gravity
                 this.playerVY += this.GRAVITY;
             }
             if (this.playerVY > this.MAX_FALL) this.playerVY = this.MAX_FALL;
