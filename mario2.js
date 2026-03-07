@@ -475,8 +475,8 @@ class SuperMario2Engine {
     // ---- UPDATE ----
 
     update() {
+        this.frameCount++; // Always increment so char select screen animates
         if (this.gameOver || this.paused || this.charSelecting) return;
-        this.frameCount++;
 
         // Death
         if (this.dead) {

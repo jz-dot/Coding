@@ -633,18 +633,33 @@ const Mario2Renderer = {
             ctx.font = '8px "Press Start 2P", monospace';
 
             if (selectedChar === i) {
-                // Selection cursor
+                // Selection cursor - animated arrow above selected character
                 const blink = Math.floor(frame / 8) % 2;
+                const bounce = Math.floor(frame / 12) % 2 === 0 ? 0 : 2;
+                ctx.fillStyle = '#FAC000';
+                // Draw downward-pointing arrow
+                ctx.fillRect(cx + 3, cy - 14 + bounce, 10, 3);
+                ctx.fillRect(cx + 5, cy - 11 + bounce, 6, 2);
+                ctx.fillRect(cx + 7, cy - 9 + bounce, 2, 2);
+                // Highlight box around selected
                 if (blink) {
-                    ctx.fillStyle = '#FAC000';
-                    ctx.fillRect(cx + 2, cy - 10, 12, 3);
+                    ctx.strokeStyle = '#FAC000';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(cx - 8, cy - 4, 32, 30);
                 }
             }
         }
 
-        ctx.fillStyle = '#888';
-        ctx.fillText('LEFT/RIGHT TO SELECT', 28, 170);
-        ctx.fillText('ENTER TO START', 56, 190);
+        // Blinking prompt text
+        const promptBlink = Math.floor(frame / 20) % 2;
+        ctx.fillStyle = promptBlink ? '#FFF' : '#888';
+        ctx.fillText('< >  ARROWS SELECT', 32, 170);
+        ctx.fillStyle = promptBlink ? '#FAC000' : '#888';
+        ctx.fillText('ENTER / Z  START', 40, 190);
+        ctx.fillStyle = '#555';
+        ctx.font = '6px monospace';
+        ctx.fillText('or press 1-4 to pick directly', 32, 210);
+        ctx.font = '8px "Press Start 2P", monospace';
     },
 
     drawSlotMachine(ctx, reels, spinning, frame) {
