@@ -60,7 +60,7 @@ class DrMarioEngine {
 
         this.pillX = 0;
         this.pillY = 0;
-        this.pillRotation = 0; // 0=horiz, 1=vert (NES only has 2 states)
+        this.pillRotation = 0; // 0-3: NES has 4 rotation states (2 spatial x 2 color arrangements)
         this.pillColors = [null, null];
         this.nextPillColors = [null, null];
         this.hasPill = false;
@@ -197,7 +197,8 @@ class DrMarioEngine {
         py = py !== undefined ? py : this.pillY;
         rot = rot !== undefined ? rot : this.pillRotation;
 
-        if (rot === 0) return [[px, py], [px + 1, py]];       // horizontal
+        const isHoriz = rot === 0 || rot === 2;
+        if (isHoriz) return [[px, py], [px + 1, py]];       // horizontal
         else return [[px, py - 1], [px, py]];               // vertical
     }
 
@@ -230,10 +231,10 @@ class DrMarioEngine {
         return false;
     }
 
-    // NES Dr. Mario: 2 rotation states, no wall kicks
+    // NES Dr. Mario: 4 rotation states (H/V x 2 color arrangements)
     rotateClockwise() {
         if (!this.hasPill || this.state !== 'falling' || this.gameOver || this.paused) return false;
-        const newRot = this.pillRotation === 0 ? 1 : 0;
+        const newRot = (this.pillRotation + 1) % 4;
         if (this.isValidPillPos(this.pillX, this.pillY, newRot)) {
             this.pillRotation = newRot;
             nesAudio.playSFX('rotate');
@@ -258,7 +259,7 @@ class DrMarioEngine {
         if (!this.hasPill) return;
         const cells = this.getPillCells();
         const colors = this.getPillColorAssignment();
-        const isHoriz = this.pillRotation === 0;
+        const isHoriz = this.pillRotation === 0 || this.pillRotation === 2;
 
         for (let i = 0; i < cells.length; i++) {
             const [x, y] = cells[i];
@@ -281,6 +282,11 @@ class DrMarioEngine {
     }
 
     getPillColorAssignment() {
+        // 4 rotation states cycle through color arrangements:
+        // rot 0 (H): [A, B]  rot 1 (V): [B, A]  rot 2 (H): [B, A]  rot 3 (V): [A, B]
+        if (this.pillRotation === 1 || this.pillRotation === 2) {
+            return [this.pillColors[1], this.pillColors[0]];
+        }
         return [this.pillColors[0], this.pillColors[1]];
     }
 
@@ -618,7 +624,7 @@ class DrMarioEngine {
         if (this.hasPill && this.state === 'falling') {
             const cells = this.getPillCells();
             const colors = this.getPillColorAssignment();
-            const isHoriz = this.pillRotation === 0;
+            const isHoriz = this.pillRotation === 0 || this.pillRotation === 2;
 
             for (let i = 0; i < cells.length; i++) {
                 const [x, y] = cells[i];

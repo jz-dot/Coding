@@ -491,9 +491,16 @@
         if (keys[code]) return;
         keys[code] = true;
 
-        // Mario2 char select - always handle regardless of game state
+        // Mario2 char select - arrow keys + enter/space to select
         if (currentGame === 'mario2' && engine.charSelecting) {
-            if (code === 'Digit1') { engine.selectCharacter(0); nesAudio.playMusic('mario2', 'OVERWORLD'); }
+            if (code === 'ArrowLeft' || code === 'KeyA') {
+                engine.selectedChar = (engine.selectedChar + 3) % 4;
+            } else if (code === 'ArrowRight' || code === 'KeyD') {
+                engine.selectedChar = (engine.selectedChar + 1) % 4;
+            } else if (code === 'Enter' || code === 'Space' || code === 'KeyZ') {
+                engine.selectCharacter(engine.selectedChar);
+                nesAudio.playMusic('mario2', 'OVERWORLD');
+            } else if (code === 'Digit1') { engine.selectCharacter(0); nesAudio.playMusic('mario2', 'OVERWORLD'); }
             else if (code === 'Digit2') { engine.selectCharacter(1); nesAudio.playMusic('mario2', 'OVERWORLD'); }
             else if (code === 'Digit3') { engine.selectCharacter(2); nesAudio.playMusic('mario2', 'OVERWORLD'); }
             else if (code === 'Digit4') { engine.selectCharacter(3); nesAudio.playMusic('mario2', 'OVERWORLD'); }

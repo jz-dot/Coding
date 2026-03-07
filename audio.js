@@ -34,6 +34,7 @@ class NESAudio {
     }
 
     // Create a square wave oscillator (NES pulse channel)
+    // NES pulse channels sustain at constant volume, so hold level then cut sharply
     createSquare(freq, duration, startTime, dutyCycle = 0.5) {
         if (!this.ctx) return null;
         const osc = this.ctx.createOscillator();
@@ -41,6 +42,8 @@ class NESAudio {
         osc.type = 'square';
         osc.frequency.value = freq;
         gain.gain.setValueAtTime(0.3, startTime);
+        // Sustain at full volume, then quick cutoff at end (NES-authentic)
+        gain.gain.setValueAtTime(0.3, startTime + duration * 0.85);
         gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
         osc.connect(gain);
         gain.connect(this.masterGain);
@@ -57,6 +60,8 @@ class NESAudio {
         osc.type = 'triangle';
         osc.frequency.value = freq;
         gain.gain.setValueAtTime(0.4, startTime);
+        // Sustain then quick cutoff
+        gain.gain.setValueAtTime(0.4, startTime + duration * 0.85);
         gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
         osc.connect(gain);
         gain.connect(this.masterGain);

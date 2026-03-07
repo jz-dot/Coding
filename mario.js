@@ -9,21 +9,21 @@ class SuperMarioEngine {
         this.SCREEN_H = 240;
         this.TILE = 16;
         // NES SMB authentic physics (values from disassembly, converted to px/frame)
-        this.GRAVITY = 0.7;          // Normal falling gravity
+        this.GRAVITY = 0.5;          // Normal falling gravity
         this.MAX_FALL = 5.0;
-        this.WALK_ACCEL = 0.098;
-        this.RUN_ACCEL = 0.14;
+        this.WALK_ACCEL = 0.15;
+        this.RUN_ACCEL = 0.2;
         this.WALK_MAX = 1.5625;
         this.RUN_MAX = 2.5625;
-        this.FRICTION = 0.098;
-        this.SKID_DECEL = 0.2;
+        this.FRICTION = 0.13;
+        this.SKID_DECEL = 0.25;
 
         // Jump physics: NES SMB uses different gravity when holding vs releasing jump
-        this.JUMP_VEL_STAND = -4.1;
-        this.JUMP_VEL_WALK = -4.1;
-        this.JUMP_VEL_RUN = -5.0;
-        this.JUMP_GRAVITY_HELD = 0.2;    // Low gravity while holding jump (gives height control)
-        this.JUMP_GRAVITY_RELEASE = 0.7; // Full gravity when jump released (snappy descent)
+        this.JUMP_VEL_STAND = -4.5;
+        this.JUMP_VEL_WALK = -4.5;
+        this.JUMP_VEL_RUN = -5.2;
+        this.JUMP_GRAVITY_HELD = 0.13;   // Low gravity while holding jump (gives height control)
+        this.JUMP_GRAVITY_RELEASE = 0.55; // Full gravity when jump released (snappy descent)
 
         // Swim physics
         this.SWIM_GRAVITY = 0.1;
