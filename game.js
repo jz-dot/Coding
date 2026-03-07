@@ -746,7 +746,13 @@
         document.getElementById('level-display').textContent = String(startLevel).padStart(2, '0');
         document.getElementById('height-display').textContent = String(startHeight);
         document.getElementById('speed-display').textContent = ['LOW', 'MED', 'HI'][speedSetting];
-        document.getElementById('music-display').textContent = musicType;
+        // Show FEVER/CHILL labels for Dr. Mario
+        let musicLabel = musicType;
+        if (currentGame === 'drmario') {
+            if (musicType === 'A') musicLabel = 'FEVER';
+            else if (musicType === 'B') musicLabel = 'CHILL';
+        }
+        document.getElementById('music-display').textContent = musicLabel;
         document.getElementById('world-display').textContent = String(startWorld);
         document.getElementById('lives-display').textContent = String(startLives);
     }

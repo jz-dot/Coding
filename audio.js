@@ -381,49 +381,153 @@ class NESAudio {
         }, pos * 1000 - 50);
     }
 
-    // Dr. Mario - Fever theme
+    // Dr. Mario - Fever theme (NES authentic melody)
     playDrMarioFever() {
         if (!this.musicPlaying) return;
         const t = this.ctx.currentTime;
-        const bpm = 160;
+        const bpm = 155;
         const beat = 60 / bpm;
-        const q = beat;
-        const e = beat / 2;
-        const h = beat * 2;
-        const s = beat / 4;
+        const s = beat / 4;  // sixteenth
+        const e = beat / 2;  // eighth
+        const q = beat;      // quarter
+        const dq = beat * 1.5; // dotted quarter
+        const h = beat * 2;  // half
 
+        // Fever main melody - characteristic riff
         const melody = [
-            ['A', 5, e], ['G#', 5, e], ['A', 5, e], ['REST', 0, e],
-            ['A', 5, e], ['G#', 5, e], ['A', 5, e], ['E', 5, e],
-            ['F', 5, e], ['E', 5, e], ['D', 5, e], ['E', 5, e],
+            // Intro riff
+            ['D', 5, s], ['D', 5, s], ['REST', 0, s], ['D', 5, s],
+            ['REST', 0, e], ['D', 5, e],
+            ['D', 5, e], ['E', 5, e], ['F', 5, e], ['E', 5, e],
+            ['D', 5, e], ['C', 5, e], ['A', 4, q],
+
+            // Repeat with variation
+            ['D', 5, s], ['D', 5, s], ['REST', 0, s], ['D', 5, s],
+            ['REST', 0, e], ['D', 5, e],
+            ['F', 5, e], ['E', 5, e], ['D', 5, e], ['C', 5, e],
+            ['D', 5, q], ['REST', 0, q],
+
+            // Bridge phrase
+            ['A', 4, e], ['C', 5, e], ['D', 5, e], ['F', 5, e],
+            ['E', 5, q], ['D', 5, q],
+            ['C', 5, e], ['A', 4, e], ['G', 4, e], ['A', 4, e],
             ['A', 4, q], ['REST', 0, q],
 
-            ['A', 5, e], ['G#', 5, e], ['A', 5, e], ['REST', 0, e],
-            ['A', 5, e], ['G#', 5, e], ['A', 5, q],
-            ['C', 6, e], ['B', 5, e], ['A', 5, e], ['G', 5, e],
-            ['A', 5, q], ['REST', 0, q],
+            // Descending phrase
+            ['F', 5, e], ['E', 5, e], ['D', 5, e], ['C', 5, e],
+            ['D', 5, e], ['C', 5, e], ['A', 4, q],
+            ['G', 4, e], ['A', 4, e], ['C', 5, e], ['A', 4, e],
+            ['D', 5, h],
+        ];
+
+        // Fever bass line - pumping eighth notes
+        const bass = [
+            ['D', 3, e], ['A', 3, e], ['D', 3, e], ['A', 3, e],
+            ['D', 3, e], ['A', 3, e], ['D', 3, e], ['A', 3, e],
+            ['D', 3, e], ['A', 3, e], ['D', 3, e], ['A', 3, e],
+            ['A', 2, e], ['E', 3, e], ['A', 2, e], ['E', 3, e],
+
+            ['D', 3, e], ['A', 3, e], ['D', 3, e], ['A', 3, e],
+            ['D', 3, e], ['A', 3, e], ['D', 3, e], ['A', 3, e],
+            ['Bb', 2, e], ['F', 3, e], ['Bb', 2, e], ['F', 3, e],
+            ['D', 3, e], ['A', 3, e], ['D', 3, e], ['A', 3, e],
+
+            ['F', 3, e], ['C', 4, e], ['F', 3, e], ['C', 4, e],
+            ['C', 3, e], ['G', 3, e], ['Bb', 2, e], ['F', 3, e],
+            ['A', 2, e], ['E', 3, e], ['A', 2, e], ['E', 3, e],
+            ['A', 2, e], ['E', 3, e], ['A', 2, e], ['E', 3, e],
+
+            ['Bb', 2, e], ['F', 3, e], ['Bb', 2, e], ['F', 3, e],
+            ['Bb', 2, e], ['F', 3, e], ['A', 2, e], ['E', 3, e],
+            ['G', 2, e], ['D', 3, e], ['A', 2, e], ['E', 3, e],
+            ['D', 3, e], ['A', 3, e], ['D', 3, e], ['A', 3, e],
+        ];
+
+        let pos = 0;
+        melody.forEach(([note, oct, dur]) => {
+            if (note !== 'REST') {
+                this.musicNodes.push(this.createSquare(this.noteFreq(note, oct), dur * 0.8, t + pos));
+            }
+            pos += dur;
+        });
+
+        let bpos = 0;
+        bass.forEach(([note, oct, dur]) => {
+            if (bpos < pos) {
+                this.musicNodes.push(this.createTriangle(this.noteFreq(note, oct), dur * 0.7, t + bpos));
+            }
+            bpos += dur;
+        });
+
+        // Percussion - snappy hi-hat pattern
+        for (let i = 0; i < Math.floor(pos / e); i++) {
+            this.musicNodes.push(this.createNoise(0.02, t + i * e));
+            if (i % 4 === 2) {
+                this.musicNodes.push(this.createNoise(0.04, t + i * e));
+            }
+        }
+
+        this.musicTimeout = setTimeout(() => {
+            if (this.musicPlaying) this.playDrMarioFever();
+        }, pos * 1000 - 50);
+    }
+
+    // Dr. Mario - Chill theme (NES authentic melody - reggae feel)
+    playDrMarioChill() {
+        if (!this.musicPlaying) return;
+        const t = this.ctx.currentTime;
+        const bpm = 104;
+        const beat = 60 / bpm;
+        const s = beat / 4;
+        const e = beat / 2;
+        const q = beat;
+        const dq = beat * 1.5;
+        const h = beat * 2;
+
+        // Chill melody - laid-back, reggae-influenced
+        const melody = [
+            ['REST', 0, e], ['G', 4, e], ['C', 5, q],
+            ['REST', 0, e], ['E', 5, e], ['D', 5, e], ['C', 5, e],
+            ['REST', 0, e], ['G', 4, e], ['A', 4, q],
+            ['REST', 0, q], ['REST', 0, q],
+
+            ['REST', 0, e], ['A', 4, e], ['D', 5, q],
+            ['REST', 0, e], ['F', 5, e], ['E', 5, e], ['D', 5, e],
+            ['C', 5, e], ['B', 4, e], ['C', 5, q],
+            ['REST', 0, q], ['REST', 0, q],
 
             ['E', 5, e], ['D', 5, e], ['C', 5, e], ['D', 5, e],
             ['E', 5, q], ['G', 5, q],
             ['F', 5, e], ['E', 5, e], ['D', 5, e], ['C', 5, e],
-            ['D', 5, q], ['REST', 0, q],
+            ['C', 5, h],
 
-            ['C', 5, e], ['B', 4, e], ['A', 4, e], ['B', 4, e],
+            ['REST', 0, e], ['G', 4, e], ['A', 4, e], ['B', 4, e],
             ['C', 5, q], ['E', 5, q],
             ['D', 5, e], ['C', 5, e], ['B', 4, e], ['A', 4, e],
-            ['A', 4, q], ['REST', 0, q],
+            ['G', 4, h],
         ];
 
+        // Chill bass - reggae offbeat feel
         const bass = [
-            ['A', 3, q], ['E', 3, q], ['A', 3, q], ['E', 3, q],
-            ['D', 3, q], ['A', 3, q], ['D', 3, q], ['A', 3, q],
-            ['A', 3, q], ['E', 3, q], ['A', 3, q], ['E', 3, q],
-            ['A', 3, q], ['E', 3, q], ['A', 3, q], ['E', 3, q],
+            ['C', 3, q], ['REST', 0, e], ['G', 3, e], ['C', 3, q], ['G', 3, q],
+            ['C', 3, q], ['REST', 0, e], ['G', 3, e], ['E', 3, q], ['G', 3, q],
+            ['A', 2, q], ['REST', 0, e], ['E', 3, e], ['A', 2, q], ['E', 3, q],
+            ['A', 2, q], ['REST', 0, e], ['E', 3, e], ['A', 2, q], ['E', 3, q],
 
+            ['D', 3, q], ['REST', 0, e], ['A', 3, e], ['D', 3, q], ['A', 3, q],
+            ['G', 2, q], ['REST', 0, e], ['D', 3, e], ['G', 2, q], ['B', 2, q],
+            ['C', 3, q], ['REST', 0, e], ['G', 3, e], ['C', 3, q], ['G', 3, q],
+            ['C', 3, q], ['REST', 0, e], ['G', 3, e], ['C', 3, q], ['E', 3, q],
+
+            ['C', 3, q], ['REST', 0, e], ['G', 3, e], ['C', 3, q], ['G', 3, q],
+            ['C', 3, q], ['REST', 0, e], ['G', 3, e], ['E', 3, q], ['G', 3, q],
+            ['F', 3, q], ['REST', 0, e], ['C', 4, e], ['F', 3, q], ['A', 3, q],
             ['C', 3, q], ['G', 3, q], ['C', 3, q], ['G', 3, q],
-            ['D', 3, q], ['A', 3, q], ['D', 3, q], ['A', 3, q],
-            ['A', 2, q], ['E', 3, q], ['A', 2, q], ['E', 3, q],
-            ['A', 2, q], ['E', 3, q], ['A', 2, q], ['E', 3, q],
+
+            ['A', 2, q], ['REST', 0, e], ['E', 3, e], ['A', 2, q], ['E', 3, q],
+            ['C', 3, q], ['REST', 0, e], ['G', 3, e], ['E', 3, q], ['G', 3, q],
+            ['D', 3, q], ['REST', 0, e], ['A', 3, e], ['G', 2, q], ['D', 3, q],
+            ['G', 2, q], ['REST', 0, e], ['D', 3, e], ['G', 2, h],
         ];
 
         let pos = 0;
@@ -436,83 +540,21 @@ class NESAudio {
 
         let bpos = 0;
         bass.forEach(([note, oct, dur]) => {
-            if (bpos < pos) {
+            if (note !== 'REST' && bpos < pos) {
                 this.musicNodes.push(this.createTriangle(this.noteFreq(note, oct), dur * 0.75, t + bpos));
             }
             bpos += dur;
         });
 
-        for (let i = 0; i < pos / e; i++) {
-            if (i % 4 === 0 || i % 4 === 2) {
-                this.musicNodes.push(this.createNoise(0.03, t + i * e));
+        // Reggae offbeat percussion
+        for (let i = 0; i < Math.floor(pos / q); i++) {
+            // Offbeat hi-hat
+            this.musicNodes.push(this.createNoise(0.03, t + i * q + e));
+            // Kick on downbeat every other bar
+            if (i % 4 === 0) {
+                this.musicNodes.push(this.createNoise(0.05, t + i * q));
             }
         }
-
-        this.musicTimeout = setTimeout(() => {
-            if (this.musicPlaying) this.playDrMarioFever();
-        }, pos * 1000 - 50);
-    }
-
-    // Dr. Mario - Chill theme
-    playDrMarioChill() {
-        if (!this.musicPlaying) return;
-        const t = this.ctx.currentTime;
-        const bpm = 110;
-        const beat = 60 / bpm;
-        const q = beat;
-        const e = beat / 2;
-        const h = beat * 2;
-        const w = beat * 4;
-
-        const melody = [
-            ['C', 5, q], ['E', 5, e], ['G', 5, e], ['A', 5, h],
-            ['G', 5, q], ['E', 5, q], ['C', 5, h],
-            ['D', 5, q], ['F', 5, e], ['A', 5, e], ['G', 5, h],
-            ['F', 5, q], ['D', 5, q], ['C', 5, h],
-
-            ['E', 5, q], ['G', 5, q], ['B', 5, q], ['A', 5, q],
-            ['G', 5, q], ['F', 5, q], ['E', 5, h],
-            ['D', 5, q], ['E', 5, q], ['F', 5, q], ['G', 5, q],
-            ['A', 5, h], ['G', 5, h],
-
-            ['C', 5, q], ['D', 5, q], ['E', 5, h],
-            ['F', 5, q], ['E', 5, q], ['D', 5, h],
-            ['C', 5, q], ['B', 4, q], ['A', 4, q], ['B', 4, q],
-            ['C', 5, w],
-        ];
-
-        const bass = [
-            ['C', 3, q], ['G', 3, q], ['C', 3, q], ['G', 3, q],
-            ['C', 3, q], ['G', 3, q], ['C', 3, q], ['G', 3, q],
-            ['D', 3, q], ['A', 3, q], ['D', 3, q], ['A', 3, q],
-            ['F', 3, q], ['C', 4, q], ['F', 3, q], ['C', 4, q],
-
-            ['E', 3, q], ['B', 3, q], ['E', 3, q], ['B', 3, q],
-            ['G', 3, q], ['D', 4, q], ['G', 3, q], ['D', 4, q],
-            ['D', 3, q], ['A', 3, q], ['G', 3, q], ['D', 4, q],
-            ['F', 3, q], ['C', 4, q], ['G', 3, q], ['D', 4, q],
-
-            ['C', 3, q], ['G', 3, q], ['C', 3, q], ['G', 3, q],
-            ['D', 3, q], ['A', 3, q], ['D', 3, q], ['A', 3, q],
-            ['A', 2, q], ['E', 3, q], ['A', 2, q], ['E', 3, q],
-            ['C', 3, q], ['G', 3, q], ['C', 3, q], ['G', 3, q],
-        ];
-
-        let pos = 0;
-        melody.forEach(([note, oct, dur]) => {
-            if (note !== 'REST') {
-                this.musicNodes.push(this.createSquare(this.noteFreq(note, oct), dur * 0.9, t + pos));
-            }
-            pos += dur;
-        });
-
-        let bpos = 0;
-        bass.forEach(([note, oct, dur]) => {
-            if (bpos < pos) {
-                this.musicNodes.push(this.createTriangle(this.noteFreq(note, oct), dur * 0.8, t + bpos));
-            }
-            bpos += dur;
-        });
 
         this.musicTimeout = setTimeout(() => {
             if (this.musicPlaying) this.playDrMarioChill();

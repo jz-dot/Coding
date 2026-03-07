@@ -1,43 +1,45 @@
 // ============================================================
-// NES Dr. Mario Engine - Authentic NES Dr. Mario (1990) mechanics
-// 8 columns x 16 rows, virus elimination, pill mechanics
+// NES Dr. Mario Engine - Authentic NES Dr. Mario (1990)
+// 8 columns x 16 rows, pill capsules, animated viruses
 // ============================================================
 
 class DrMarioEngine {
     constructor() {
-        // Dr. Mario: 8 columns x 16 rows
         this.COLS = 8;
         this.ROWS = 16;
-        this.CELL_SIZE = 20; // will be adjusted to fit canvas
-        this.BOARD_WIDTH = this.COLS * this.CELL_SIZE;
-        this.BOARD_HEIGHT = this.ROWS * this.CELL_SIZE;
+        this.CELL_SIZE = 20;
 
-        // Three colors in Dr. Mario
+        // Three colors
         this.COLORS = ['red', 'yellow', 'blue'];
 
-        // NES Dr. Mario color values
+        // NES-accurate pill colors
         this.COLOR_MAP = {
-            'red': '#F83800',
-            'yellow': '#FCF357',
-            'blue': '#0058F8'
+            'red':    '#F83800',
+            'yellow': '#F8B800',
+            'blue':   '#6888FC'
         };
 
-        // Virus sprites represented by color
+        // Darker shades for pill shadow
+        this.COLOR_DARK = {
+            'red':    '#A81000',
+            'yellow': '#A87800',
+            'blue':   '#3850B8'
+        };
+
+        // Virus body colors
         this.VIRUS_COLORS = {
-            'red': '#D80000',
-            'yellow': '#D8C800',
-            'blue': '#0040D8'
+            'red':    '#D82800',
+            'yellow': '#E8A000',
+            'blue':   '#0058F8'
         };
 
         // Speed settings (frames per drop) - NES authentic
-        this.SPEED_LOW = 70;    // LOW speed
-        this.SPEED_MED = 45;    // MED speed
-        this.SPEED_HI = 15;     // HI speed
-
-        // Speed increases every 10 levels for each base speed
+        this.SPEED_LOW = 70;
+        this.SPEED_MED = 45;
+        this.SPEED_HI = 15;
         this.SPEED_NAMES = ['LOW', 'MED', 'HI'];
 
-        // DAS settings (same as Tetris)
+        // DAS
         this.DAS_INITIAL = 16;
         this.DAS_REPEAT = 6;
 
@@ -58,34 +60,28 @@ class DrMarioEngine {
         this.stageClear = false;
         this.paused = false;
 
-        // Current pill
         this.pillX = 0;
         this.pillY = 0;
-        this.pillRotation = 0; // 0=horizontal, 1=vertical, 2=h-flipped, 3=v-flipped
-        this.pillColors = [null, null]; // [left/top, right/bottom]
+        this.pillRotation = 0; // 0=horiz, 1=vert, 2=horiz-flip, 3=vert-flip
+        this.pillColors = [null, null];
         this.nextPillColors = [null, null];
         this.hasPill = false;
 
         this.frameCount = 0;
         this.gravityCounter = 0;
         this.speed = this.SPEED_MED;
-        this.speedSetting = 1; // 0=LOW, 1=MED, 2=HI
+        this.speedSetting = 1;
 
-        // State machine
-        this.state = 'spawning'; // spawning, falling, clearing, cascading, gameover, clear
+        this.state = 'spawning';
         this.clearAnimFrames = 0;
         this.clearingCells = [];
         this.cascadeDelay = 0;
         this.entryDelay = 0;
 
-        // DAS
         this.dasDirection = 0;
         this.dasCounter = 0;
-
-        // Scoring combo
         this.comboCount = 0;
 
-        // ARE
         this.ARE_FRAMES = 15;
         this.CLEAR_ANIM_FRAMES = 18;
     }
@@ -96,31 +92,22 @@ class DrMarioEngine {
         this.level = this.startLevel;
         this.speedSetting = speedSetting;
 
-        // Set base speed
-        switch(speedSetting) {
+        switch (speedSetting) {
             case 0: this.speed = this.SPEED_LOW; break;
             case 1: this.speed = this.SPEED_MED; break;
             case 2: this.speed = this.SPEED_HI; break;
         }
 
-        // Place viruses
         this.placeViruses();
-
-        // Generate first next pill
         this.nextPillColors = this.randomPillColors();
         this.spawnPill();
     }
 
-    // NES Dr. Mario virus placement
-    // Number of viruses = (level + 1) * 4, max 84
-    // Viruses placed in bottom rows, never above row 3
     placeViruses() {
         const numViruses = Math.min((this.level + 1) * 4, 84);
         this.initialVirusCount = numViruses;
         this.virusCount = numViruses;
 
-        // Viruses can only appear in rows 4-15 (0-indexed)
-        // At higher levels they can appear higher
         const minRow = Math.max(4, 16 - Math.floor(this.level / 2) - 8);
 
         let placed = 0;
@@ -134,10 +121,9 @@ class DrMarioEngine {
 
             if (this.board[row][col]) continue;
 
-            // Pick color - avoid 3 in a row
             const color = this.COLORS[Math.floor(Math.random() * 3)];
 
-            // Check horizontal
+            // Check horizontal - avoid 3 in a row
             let hCount = 0;
             for (let c = col - 1; c >= 0; c--) {
                 if (this.board[row][c] && this.board[row][c].color === color) hCount++;
@@ -148,7 +134,6 @@ class DrMarioEngine {
                 else break;
             }
 
-            // Check vertical
             let vCount = 0;
             for (let r = row - 1; r >= 0; r--) {
                 if (this.board[r][col] && this.board[r][col].color === color) vCount++;
@@ -179,15 +164,14 @@ class DrMarioEngine {
     spawnPill() {
         this.pillColors = [...this.nextPillColors];
         this.nextPillColors = this.randomPillColors();
-        this.pillX = 3; // Spawn at column 3-4
+        this.pillX = 3;
         this.pillY = 0;
-        this.pillRotation = 0; // horizontal
+        this.pillRotation = 0;
         this.hasPill = true;
         this.gravityCounter = 0;
         this.comboCount = 0;
         this.state = 'falling';
 
-        // Check if spawn blocked
         const cells = this.getPillCells();
         for (const [x, y] of cells) {
             if (y >= 0 && this.board[y][x]) {
@@ -199,17 +183,16 @@ class DrMarioEngine {
         return true;
     }
 
-    // Get the two cells occupied by the current pill
     getPillCells(px, py, rot) {
         px = px !== undefined ? px : this.pillX;
         py = py !== undefined ? py : this.pillY;
         rot = rot !== undefined ? rot : this.pillRotation;
 
-        switch(rot) {
-            case 0: return [[px, py], [px + 1, py]];      // horizontal: [left, right]
-            case 1: return [[px, py - 1], [px, py]];       // vertical: [top, bottom]
-            case 2: return [[px + 1, py], [px, py]];       // h-flipped: [right, left]
-            case 3: return [[px, py], [px, py - 1]];       // v-flipped: [bottom, top]
+        switch (rot) {
+            case 0: return [[px, py], [px + 1, py]];       // horizontal
+            case 1: return [[px, py - 1], [px, py]];        // vertical
+            case 2: return [[px + 1, py], [px, py]];        // h-flipped
+            case 3: return [[px, py], [px, py - 1]];        // v-flipped
         }
         return [[px, py], [px + 1, py]];
     }
@@ -251,7 +234,6 @@ class DrMarioEngine {
             nesAudio.playSFX('rotate');
             return true;
         }
-        // Wall kick - try shifting
         if (this.isValidPillPos(this.pillX - 1, this.pillY, newRot)) {
             this.pillX--;
             this.pillRotation = newRot;
@@ -314,11 +296,24 @@ class DrMarioEngine {
         if (!this.hasPill) return;
         const cells = this.getPillCells();
         const colors = this.getPillColorAssignment();
+        const isHoriz = this.pillRotation === 0 || this.pillRotation === 2;
 
         for (let i = 0; i < cells.length; i++) {
             const [x, y] = cells[i];
             if (y >= 0 && y < this.ROWS && x >= 0 && x < this.COLS) {
-                this.board[y][x] = { color: colors[i], type: 'pill', partner: i === 0 ? 1 : 0 };
+                // Determine connection direction for capsule rendering
+                let dir;
+                if (isHoriz) {
+                    dir = (i === 0) ? 'right' : 'left';
+                    // Account for flipped rotation
+                    if (this.pillRotation === 2) dir = (i === 0) ? 'left' : 'right';
+                } else {
+                    dir = (i === 0) ? 'down' : 'up';
+                    if (this.pillRotation === 3) dir = (i === 0) ? 'up' : 'down';
+                }
+                // For horizontal: cell[0] connects right, cell[1] connects left
+                // But getPillCells for rot=0 returns [left,right], so cell[0]'s partner is to right
+                this.board[y][x] = { color: colors[i], type: 'pill', dir };
             }
         }
 
@@ -328,12 +323,11 @@ class DrMarioEngine {
     }
 
     getPillColorAssignment() {
-        // Map pill colors to cell positions based on rotation
-        switch(this.pillRotation) {
-            case 0: return [this.pillColors[0], this.pillColors[1]]; // L, R
-            case 1: return [this.pillColors[0], this.pillColors[1]]; // T, B
-            case 2: return [this.pillColors[1], this.pillColors[0]]; // R, L (flipped)
-            case 3: return [this.pillColors[1], this.pillColors[0]]; // B, T (flipped)
+        switch (this.pillRotation) {
+            case 0: return [this.pillColors[0], this.pillColors[1]];
+            case 1: return [this.pillColors[0], this.pillColors[1]];
+            case 2: return [this.pillColors[1], this.pillColors[0]];
+            case 3: return [this.pillColors[1], this.pillColors[0]];
         }
         return this.pillColors;
     }
@@ -341,7 +335,7 @@ class DrMarioEngine {
     checkMatches() {
         this.clearingCells = [];
 
-        // Check horizontal matches (4+ in a row)
+        // Horizontal
         for (let r = 0; r < this.ROWS; r++) {
             let runColor = null;
             let runStart = 0;
@@ -364,7 +358,7 @@ class DrMarioEngine {
             }
         }
 
-        // Check vertical matches (4+ in a column)
+        // Vertical
         for (let c = 0; c < this.COLS; c++) {
             let runColor = null;
             let runStart = 0;
@@ -387,8 +381,8 @@ class DrMarioEngine {
             }
         }
 
-        // Remove duplicates
-        const unique = new Set(this.clearingCells.map(([x,y]) => `${x},${y}`));
+        // Deduplicate
+        const unique = new Set(this.clearingCells.map(([x, y]) => `${x},${y}`));
         this.clearingCells = [...unique].map(s => {
             const [x, y] = s.split(',').map(Number);
             return [x, y];
@@ -399,7 +393,6 @@ class DrMarioEngine {
             this.clearAnimFrames = this.CLEAR_ANIM_FRAMES;
             this.comboCount++;
 
-            // Count viruses being cleared
             let virusesCleared = 0;
             for (const [x, y] of this.clearingCells) {
                 if (this.board[y][x] && this.board[y][x].type === 'virus') {
@@ -409,12 +402,10 @@ class DrMarioEngine {
 
             if (virusesCleared > 0) {
                 nesAudio.playSFX('virus_clear');
-                // NES Dr. Mario scoring: 100 * 2^(combo-1) per virus
                 const points = virusesCleared * 100 * Math.pow(2, this.comboCount - 1);
                 this.score += points;
             }
         } else {
-            // No matches - spawn next pill or cascade
             this.comboCount = 0;
             this.entryDelay = this.ARE_FRAMES;
             this.state = 'spawning';
@@ -422,11 +413,28 @@ class DrMarioEngine {
     }
 
     clearMatches() {
-        let virusesCleared = 0;
+        // Before clearing, disconnect pill partners
+        for (const [x, y] of this.clearingCells) {
+            const cell = this.board[y][x];
+            if (cell && cell.type === 'pill' && cell.dir !== 'single') {
+                // Find partner and make it single
+                let px, py;
+                if (cell.dir === 'left')  { px = x - 1; py = y; }
+                if (cell.dir === 'right') { px = x + 1; py = y; }
+                if (cell.dir === 'up')    { px = x; py = y - 1; }
+                if (cell.dir === 'down')  { px = x; py = y + 1; }
+                if (px !== undefined && py >= 0 && py < this.ROWS && px >= 0 && px < this.COLS) {
+                    const partner = this.board[py][px];
+                    if (partner && partner.type === 'pill') {
+                        partner.dir = 'single';
+                    }
+                }
+            }
+        }
+
         for (const [x, y] of this.clearingCells) {
             if (this.board[y][x]) {
                 if (this.board[y][x].type === 'virus') {
-                    virusesCleared++;
                     this.virusCount--;
                 }
                 this.board[y][x] = null;
@@ -435,7 +443,6 @@ class DrMarioEngine {
 
         this.clearingCells = [];
 
-        // Check for stage clear
         if (this.virusCount <= 0) {
             this.stageClear = true;
             this.state = 'clear';
@@ -443,25 +450,50 @@ class DrMarioEngine {
             return;
         }
 
-        // Apply gravity to floating pill halves
         this.state = 'cascading';
         this.cascadeDelay = 8;
     }
 
-    // Apply gravity to floating pill segments
     applyCascadeGravity() {
         let moved = false;
 
-        // Scan from bottom to top
         for (let r = this.ROWS - 2; r >= 0; r--) {
             for (let c = 0; c < this.COLS; c++) {
                 const cell = this.board[r][c];
                 if (cell && cell.type === 'pill') {
-                    // Check if this half can fall
                     if (r + 1 < this.ROWS && !this.board[r + 1][c]) {
-                        this.board[r + 1][c] = cell;
-                        this.board[r][c] = null;
-                        moved = true;
+                        // Only drop single halves or vertical pairs (check partner)
+                        if (cell.dir === 'single') {
+                            this.board[r + 1][c] = cell;
+                            this.board[r][c] = null;
+                            moved = true;
+                        } else if (cell.dir === 'left' || cell.dir === 'right') {
+                            // Horizontal pair - check if partner can also fall
+                            const pc = cell.dir === 'right' ? c + 1 : c - 1;
+                            if (pc >= 0 && pc < this.COLS) {
+                                const partner = this.board[r][pc];
+                                if (partner && r + 1 < this.ROWS && !this.board[r + 1][pc]) {
+                                    this.board[r + 1][c] = cell;
+                                    this.board[r + 1][pc] = partner;
+                                    this.board[r][c] = null;
+                                    this.board[r][pc] = null;
+                                    moved = true;
+                                }
+                            }
+                        }
+                        // Vertical pairs: the bottom half handles the drop
+                        else if (cell.dir === 'down') {
+                            // This is the top half, bottom is below - skip, bottom handles it
+                        } else if (cell.dir === 'up') {
+                            // This is the bottom half - check if below is empty
+                            // Top half is at r-1
+                            if (r - 1 >= 0 && this.board[r - 1][c] && this.board[r - 1][c].dir === 'down') {
+                                this.board[r + 1][c] = cell;
+                                this.board[r][c] = this.board[r - 1][c];
+                                this.board[r - 1][c] = null;
+                                moved = true;
+                            }
+                        }
                     }
                 }
             }
@@ -475,7 +507,7 @@ class DrMarioEngine {
 
         this.frameCount++;
 
-        switch(this.state) {
+        switch (this.state) {
             case 'spawning':
                 this.entryDelay--;
                 if (this.entryDelay <= 0) {
@@ -510,7 +542,6 @@ class DrMarioEngine {
                     if (moved) {
                         this.cascadeDelay = 4;
                     } else {
-                        // Check for new matches after cascade
                         this.checkMatches();
                         if (this.clearingCells.length === 0 && this.state !== 'clearing') {
                             this.entryDelay = this.ARE_FRAMES;
@@ -544,55 +575,27 @@ class DrMarioEngine {
         this.dasCounter = 0;
     }
 
-    render(ctx, nextCtx) {
-        const cs = this.CELL_SIZE;
+    // ---- RENDERING ----
 
-        // Adjust cell size to fit the canvas area
-        // Dr. Mario is 8x16, so we scale up
+    render(ctx, nextCtx) {
         const cw = ctx.canvas.width;
         const ch = ctx.canvas.height;
-        const drawCS = Math.min(cw / this.COLS, ch / this.ROWS);
-        const offsetX = (cw - this.COLS * drawCS) / 2;
-        const offsetY = (ch - this.ROWS * drawCS) / 2;
+        const cs = Math.min(cw / (this.COLS + 2), ch / (this.ROWS + 3));
+        const boardW = this.COLS * cs;
+        const boardH = this.ROWS * cs;
+        const ox = (cw - boardW) / 2;
+        const oy = (ch - boardH) / 2 + cs;
 
-        // Clear
-        ctx.fillStyle = '#0C0C0C';
+        // Background - NES Dr. Mario dark blue/black
+        ctx.fillStyle = '#000020';
         ctx.fillRect(0, 0, cw, ch);
 
-        // Draw bottle outline
-        ctx.strokeStyle = '#888';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(offsetX - 2, offsetY - 2, this.COLS * drawCS + 4, this.ROWS * drawCS + 4);
+        // Draw bottle
+        this.drawBottle(ctx, ox, oy, boardW, boardH, cs);
 
-        // Bottle neck (opening at top center)
-        const neckWidth = 2 * drawCS;
-        const neckX = offsetX + (this.COLS * drawCS - neckWidth) / 2;
-        ctx.fillStyle = '#0C0C0C';
-        ctx.fillRect(neckX, offsetY - 12, neckWidth, 12);
-        ctx.strokeStyle = '#888';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(neckX, offsetY);
-        ctx.lineTo(neckX, offsetY - 12);
-        ctx.lineTo(neckX + neckWidth, offsetY - 12);
-        ctx.lineTo(neckX + neckWidth, offsetY);
-        ctx.stroke();
-
-        // Draw grid
-        ctx.strokeStyle = '#1a1a1a';
-        ctx.lineWidth = 0.5;
-        for (let r = 0; r <= this.ROWS; r++) {
-            ctx.beginPath();
-            ctx.moveTo(offsetX, offsetY + r * drawCS);
-            ctx.lineTo(offsetX + this.COLS * drawCS, offsetY + r * drawCS);
-            ctx.stroke();
-        }
-        for (let c = 0; c <= this.COLS; c++) {
-            ctx.beginPath();
-            ctx.moveTo(offsetX + c * drawCS, offsetY);
-            ctx.lineTo(offsetX + c * drawCS, offsetY + this.ROWS * drawCS);
-            ctx.stroke();
-        }
+        // Bottle interior - black
+        ctx.fillStyle = '#000';
+        ctx.fillRect(ox, oy, boardW, boardH);
 
         // Draw board cells
         for (let r = 0; r < this.ROWS; r++) {
@@ -600,128 +603,298 @@ class DrMarioEngine {
                 const cell = this.board[r][c];
                 if (!cell) continue;
 
-                const px = offsetX + c * drawCS;
-                const py = offsetY + r * drawCS;
+                const px = ox + c * cs;
+                const py = oy + r * cs;
 
                 if (cell.type === 'virus') {
-                    this.drawVirus(ctx, px, py, drawCS, cell.color);
+                    this.drawVirus(ctx, px, py, cs, cell.color);
                 } else {
-                    this.drawPillCell(ctx, px, py, drawCS, cell.color);
+                    this.drawPillHalf(ctx, px, py, cs, cell.color, cell.dir || 'single');
                 }
             }
         }
 
-        // Draw clearing animation
+        // Clearing animation - flash
         if (this.state === 'clearing') {
             const flash = Math.floor(this.clearAnimFrames / 3) % 2 === 0;
             for (const [x, y] of this.clearingCells) {
-                const px = offsetX + x * drawCS;
-                const py = offsetY + y * drawCS;
-                ctx.fillStyle = flash ? '#FCFCFC' : '#0C0C0C';
-                ctx.fillRect(px + 1, py + 1, drawCS - 2, drawCS - 2);
-            }
-        }
-
-        // Draw current pill
-        if (this.hasPill && this.state === 'falling') {
-            const cells = this.getPillCells();
-            const colors = this.getPillColorAssignment();
-            for (let i = 0; i < cells.length; i++) {
-                const [x, y] = cells[i];
-                if (y >= 0) {
-                    const px = offsetX + x * drawCS;
-                    const py = offsetY + y * drawCS;
-                    this.drawPillCell(ctx, px, py, drawCS, colors[i]);
+                const px = ox + x * cs;
+                const py = oy + y * cs;
+                if (flash) {
+                    ctx.fillStyle = '#FCFCFC';
+                    ctx.fillRect(px + 1, py + 1, cs - 2, cs - 2);
+                } else {
+                    ctx.fillStyle = '#000';
+                    ctx.fillRect(px, py, cs, cs);
                 }
             }
         }
 
+        // Draw falling pill
+        if (this.hasPill && this.state === 'falling') {
+            const cells = this.getPillCells();
+            const colors = this.getPillColorAssignment();
+            const isHoriz = this.pillRotation === 0 || this.pillRotation === 2;
+
+            for (let i = 0; i < cells.length; i++) {
+                const [x, y] = cells[i];
+                if (y >= 0) {
+                    const px = ox + x * cs;
+                    const py = oy + y * cs;
+                    let dir;
+                    if (isHoriz) {
+                        if (this.pillRotation === 0) dir = (i === 0) ? 'right' : 'left';
+                        else dir = (i === 0) ? 'left' : 'right';
+                    } else {
+                        if (this.pillRotation === 1) dir = (i === 0) ? 'down' : 'up';
+                        else dir = (i === 0) ? 'up' : 'down';
+                    }
+                    this.drawPillHalf(ctx, px, py, cs, colors[i], dir);
+                }
+            }
+        }
+
+        // Draw Dr. Mario (small, throwing pill at top)
+        this.drawDrMario(ctx, ox + boardW + cs * 0.3, oy - cs * 1.5, cs);
+
         // Draw next pill preview
         if (nextCtx) {
+            const nw = nextCtx.canvas.width;
+            const nh = nextCtx.canvas.height;
             nextCtx.fillStyle = '#000';
-            nextCtx.fillRect(0, 0, 80, 80);
+            nextCtx.fillRect(0, 0, nw, nh);
             if (this.nextPillColors) {
-                const previewCS = 20;
-                const ox = (80 - 2 * previewCS) / 2;
-                const oy = (80 - previewCS) / 2;
-                this.drawPillCell(nextCtx, ox, oy, previewCS, this.nextPillColors[0]);
-                this.drawPillCell(nextCtx, ox + previewCS, oy, previewCS, this.nextPillColors[1]);
+                const pcs = Math.min(nw / 4, nh / 2);
+                const npx = (nw - 2 * pcs) / 2;
+                const npy = (nh - pcs) / 2;
+                this.drawPillHalf(nextCtx, npx, npy, pcs, this.nextPillColors[0], 'right');
+                this.drawPillHalf(nextCtx, npx + pcs, npy, pcs, this.nextPillColors[1], 'left');
             }
         }
     }
 
-    drawPillCell(ctx, px, py, cs, color) {
-        const colorVal = this.COLOR_MAP[color] || color;
+    drawBottle(ctx, ox, oy, bw, bh, cs) {
+        const wallW = cs * 0.4;
+        const neckW = cs * 2;
+        const neckH = cs * 1.5;
+        const neckX = ox + (bw - neckW) / 2;
+
+        // Bottle walls - NES used a brownish/gray color
+        ctx.fillStyle = '#B8B8B8';
+
+        // Left wall
+        ctx.fillRect(ox - wallW, oy, wallW, bh);
+        // Right wall
+        ctx.fillRect(ox + bw, oy, wallW, bh);
+        // Bottom
+        ctx.fillRect(ox - wallW, oy + bh, bw + wallW * 2, wallW);
+
+        // Neck left
+        ctx.fillRect(neckX - wallW, oy - neckH, wallW, neckH);
+        // Neck right
+        ctx.fillRect(neckX + neckW, oy - neckH, wallW, neckH);
+        // Neck top left
+        ctx.fillRect(ox - wallW, oy, neckX - ox + wallW, wallW * 0.5);
+        // Neck top right
+        ctx.fillRect(neckX + neckW, oy, (ox + bw) - (neckX + neckW) + wallW, wallW * 0.5);
+
+        // Lip at top of neck
+        ctx.fillRect(neckX - wallW * 1.5, oy - neckH - wallW, neckW + wallW * 3, wallW);
+
+        // Inner shadow on walls
+        ctx.fillStyle = '#888';
+        ctx.fillRect(ox - wallW * 0.3, oy, wallW * 0.3, bh);
+        ctx.fillRect(ox + bw, oy, wallW * 0.3, bh);
+    }
+
+    drawPillHalf(ctx, px, py, cs, color, dir) {
+        const colorVal = this.COLOR_MAP[color] || '#fff';
+        const darkVal = this.COLOR_DARK[color] || '#888';
+        const m = cs * 0.1; // margin
+        const r = (cs - m * 2) / 2; // radius for rounded end
+
         ctx.fillStyle = colorVal;
-        ctx.fillRect(px + 1, py + 1, cs - 2, cs - 2);
 
-        // Highlight
-        ctx.fillStyle = 'rgba(255,255,255,0.4)';
-        ctx.fillRect(px + 1, py + 1, cs - 2, 2);
-        ctx.fillRect(px + 1, py + 1, 2, cs - 2);
+        if (dir === 'single') {
+            // Single disconnected half - circle/dot
+            ctx.beginPath();
+            ctx.arc(px + cs / 2, py + cs / 2, r, 0, Math.PI * 2);
+            ctx.fill();
+            // Highlight
+            ctx.fillStyle = 'rgba(255,255,255,0.5)';
+            ctx.beginPath();
+            ctx.arc(px + cs * 0.4, py + cs * 0.35, r * 0.35, 0, Math.PI * 2);
+            ctx.fill();
+            return;
+        }
 
-        // Shadow
-        ctx.fillStyle = 'rgba(0,0,0,0.3)';
-        ctx.fillRect(px + 1, py + cs - 3, cs - 2, 2);
-        ctx.fillRect(px + cs - 3, py + 1, 2, cs - 2);
+        // Capsule halves
+        const x1 = px + m;
+        const y1 = py + m;
+        const w = cs - m * 2;
+        const h = cs - m * 2;
 
-        // Pill shine
-        ctx.fillStyle = 'rgba(255,255,255,0.6)';
-        ctx.fillRect(px + 3, py + 3, 4, 3);
+        ctx.save();
+        ctx.beginPath();
+
+        if (dir === 'right') {
+            // Left half of horizontal pill - rounded left, flat right
+            ctx.moveTo(x1 + r, y1);
+            ctx.lineTo(x1 + w, y1);
+            ctx.lineTo(x1 + w, y1 + h);
+            ctx.lineTo(x1 + r, y1 + h);
+            ctx.arc(x1 + r, y1 + r, r, Math.PI * 0.5, Math.PI * 1.5);
+        } else if (dir === 'left') {
+            // Right half of horizontal pill - flat left, rounded right
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x1 + w - r, y1);
+            ctx.arc(x1 + w - r, y1 + r, r, -Math.PI * 0.5, Math.PI * 0.5);
+            ctx.lineTo(x1, y1 + h);
+        } else if (dir === 'down') {
+            // Top half of vertical pill - rounded top, flat bottom
+            ctx.moveTo(x1, y1 + r);
+            ctx.arc(x1 + r, y1 + r, r, Math.PI, 0);
+            ctx.lineTo(x1 + w, y1 + h);
+            ctx.lineTo(x1, y1 + h);
+        } else if (dir === 'up') {
+            // Bottom half of vertical pill - flat top, rounded bottom
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x1 + w, y1);
+            ctx.lineTo(x1 + w, y1 + h - r);
+            ctx.arc(x1 + r, y1 + h - r, r, 0, Math.PI);
+        }
+
+        ctx.closePath();
+        ctx.fill();
+
+        // Dark edge for 3D effect
+        ctx.strokeStyle = darkVal;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // Highlight shine
+        ctx.fillStyle = 'rgba(255,255,255,0.45)';
+        if (dir === 'right' || dir === 'left') {
+            ctx.fillRect(x1 + (dir === 'left' ? 2 : r * 0.5), y1 + 2, w * 0.3, h * 0.25);
+        } else {
+            ctx.fillRect(x1 + 2, y1 + (dir === 'up' ? 2 : r * 0.5), w * 0.3, h * 0.25);
+        }
+
+        ctx.restore();
     }
 
     drawVirus(ctx, px, py, cs, color) {
-        const colorVal = this.VIRUS_COLORS[color] || color;
-
-        // Virus body (circle-ish)
+        const colorVal = this.VIRUS_COLORS[color] || '#fff';
         const cx = px + cs / 2;
         const cy = py + cs / 2;
-        const r = cs / 2 - 2;
+        const s = cs * 0.42; // half-size of virus body
+        const frame = Math.floor(this.frameCount / 20) % 2;
 
+        // Virus body - blocky/pixel-art style
         ctx.fillStyle = colorVal;
-        ctx.beginPath();
-        ctx.arc(cx, cy, r, 0, Math.PI * 2);
-        ctx.fill();
+        // Main body rectangle
+        ctx.fillRect(cx - s, cy - s * 0.7, s * 2, s * 1.4);
+        ctx.fillRect(cx - s * 0.7, cy - s, s * 1.4, s * 2);
 
-        // Animated face based on frame
-        const frame = Math.floor(this.frameCount / 30) % 2;
+        // Bumps/tendrils (pixel art style)
+        const bumpS = s * 0.3;
+        // Top bumps
+        ctx.fillRect(cx - s * 0.5, cy - s - bumpS, bumpS, bumpS);
+        ctx.fillRect(cx + s * 0.2, cy - s - bumpS, bumpS, bumpS);
+        // Bottom bumps
+        ctx.fillRect(cx - s * 0.5, cy + s, bumpS, bumpS);
+        ctx.fillRect(cx + s * 0.2, cy + s, bumpS, bumpS);
+        // Side bumps
+        ctx.fillRect(cx - s - bumpS, cy - s * 0.2, bumpS, bumpS);
+        ctx.fillRect(cx + s, cy - s * 0.2, bumpS, bumpS);
 
-        // Eyes
+        // Eyes - white
         ctx.fillStyle = '#FCFCFC';
-        const eyeOff = r * 0.3;
-        const eyeR = r * 0.2;
-        ctx.beginPath();
-        ctx.arc(cx - eyeOff, cy - eyeR, eyeR, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(cx + eyeOff, cy - eyeR, eyeR, 0, Math.PI * 2);
-        ctx.fill();
+        const eyeW = s * 0.4;
+        const eyeH = s * 0.45;
+        const eyeY = cy - s * 0.35;
+        ctx.fillRect(cx - s * 0.55, eyeY, eyeW, eyeH);
+        ctx.fillRect(cx + s * 0.15, eyeY, eyeW, eyeH);
 
-        // Pupils
+        // Pupils - black, animated
         ctx.fillStyle = '#000';
-        const pupR = eyeR * 0.6;
-        const pupOff = frame === 0 ? 0 : pupR * 0.5;
+        const pupW = s * 0.2;
+        const pupOff = frame === 0 ? 0 : s * 0.15;
+        ctx.fillRect(cx - s * 0.45 + pupOff, eyeY + eyeH * 0.3, pupW, pupW);
+        ctx.fillRect(cx + s * 0.25 + pupOff, eyeY + eyeH * 0.3, pupW, pupW);
+
+        // Mouth - different per color for personality
+        ctx.fillStyle = '#000';
+        const mouthY = cy + s * 0.15;
+        if (color === 'red') {
+            // Fever: wide grin
+            if (frame === 0) {
+                ctx.fillRect(cx - s * 0.4, mouthY, s * 0.8, s * 0.15);
+                ctx.fillRect(cx - s * 0.3, mouthY + s * 0.15, s * 0.6, s * 0.1);
+            } else {
+                ctx.fillRect(cx - s * 0.3, mouthY, s * 0.6, s * 0.25);
+            }
+        } else if (color === 'blue') {
+            // Chill: frown
+            if (frame === 0) {
+                ctx.fillRect(cx - s * 0.3, mouthY + s * 0.15, s * 0.6, s * 0.1);
+                ctx.fillRect(cx - s * 0.2, mouthY + s * 0.05, s * 0.4, s * 0.1);
+            } else {
+                ctx.fillRect(cx - s * 0.15, mouthY, s * 0.3, s * 0.2);
+            }
+        } else {
+            // Weird (yellow): wavy/zigzag
+            if (frame === 0) {
+                ctx.fillRect(cx - s * 0.35, mouthY, s * 0.2, s * 0.12);
+                ctx.fillRect(cx - s * 0.1, mouthY + s * 0.1, s * 0.2, s * 0.12);
+                ctx.fillRect(cx + s * 0.15, mouthY, s * 0.2, s * 0.12);
+            } else {
+                ctx.fillRect(cx - s * 0.3, mouthY + s * 0.05, s * 0.6, s * 0.12);
+            }
+        }
+    }
+
+    drawDrMario(ctx, x, y, cs) {
+        // Simple pixel-art Dr. Mario figure
+        const s = cs * 0.3;
+
+        // Head (white circle for head mirror)
+        ctx.fillStyle = '#FCFCFC';
+        ctx.fillRect(x, y, s * 3, s * 2);
+
+        // Hair
+        ctx.fillStyle = '#481800';
+        ctx.fillRect(x, y, s * 3, s * 0.8);
+
+        // Face
+        ctx.fillStyle = '#F8B070';
+        ctx.fillRect(x + s * 0.3, y + s * 0.8, s * 2.4, s * 1.5);
+
+        // Head mirror
+        ctx.fillStyle = '#FCFCFC';
         ctx.beginPath();
-        ctx.arc(cx - eyeOff + pupOff, cy - eyeR, pupR, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(cx + eyeOff + pupOff, cy - eyeR, pupR, 0, Math.PI * 2);
+        ctx.arc(x + s * 1.5, y + s * 0.3, s * 0.6, 0, Math.PI * 2);
         ctx.fill();
 
-        // Mouth
-        ctx.strokeStyle = '#000';
-        ctx.lineWidth = 1;
-        if (frame === 0) {
-            // Smile
-            ctx.beginPath();
-            ctx.arc(cx, cy + eyeR * 0.5, r * 0.3, 0.1 * Math.PI, 0.9 * Math.PI);
-            ctx.stroke();
+        // Body (white coat)
+        ctx.fillStyle = '#FCFCFC';
+        ctx.fillRect(x - s * 0.2, y + s * 2.3, s * 3.4, s * 3);
+
+        // Coat shadow
+        ctx.fillStyle = '#D8D8D8';
+        ctx.fillRect(x + s * 1.4, y + s * 2.3, s * 1.8, s * 3);
+
+        // Stethoscope
+        ctx.fillStyle = '#888';
+        ctx.fillRect(x + s * 0.8, y + s * 2.8, s * 0.3, s * 1.5);
+
+        // Arm throwing pill (animated)
+        const throwFrame = Math.floor(this.frameCount / 15) % 2;
+        ctx.fillStyle = '#FCFCFC';
+        if (throwFrame === 0) {
+            ctx.fillRect(x - s * 1.5, y + s * 2.5, s * 1.5, s * 0.8);
         } else {
-            // Open mouth
-            ctx.fillStyle = '#000';
-            ctx.beginPath();
-            ctx.arc(cx, cy + r * 0.2, r * 0.25, 0, Math.PI * 2);
-            ctx.fill();
+            ctx.fillRect(x - s * 1.8, y + s * 2, s * 1.8, s * 0.8);
         }
     }
 }
