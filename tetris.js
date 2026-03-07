@@ -463,25 +463,58 @@ class TetrisEngine {
 
     // Render the board and current piece
     render(ctx, nextCtx) {
-        const cs = this.CELL_SIZE;
+        const cw = ctx.canvas.width;
+        const ch = ctx.canvas.height;
 
-        // Clear
+        // Calculate cell size to fit board + border walls inside the canvas
+        const wallW = 4; // wall thickness in cells fraction
+        const cs = Math.min((cw - wallW * 2) / this.COLS, (ch - wallW * 2) / (this.ROWS + 1));
+        const boardW = this.COLS * cs;
+        const boardH = this.ROWS * cs;
+        const bw = cs * 0.3; // border wall pixel thickness
+        const ox = (cw - boardW) / 2;
+        const oy = (ch - boardH - bw) / 2;
+
+        // Background
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, cw, ch);
+
+        // Playfield interior
         ctx.fillStyle = '#0C0C0C';
-        ctx.fillRect(0, 0, this.COLS * cs, this.ROWS * cs);
+        ctx.fillRect(ox, oy, boardW, boardH);
+
+        // Draw border walls (left, right, bottom) - NES style gray frame
+        ctx.fillStyle = '#B8B8B8';
+        // Left wall
+        ctx.fillRect(ox - bw, oy, bw, boardH + bw);
+        // Right wall
+        ctx.fillRect(ox + boardW, oy, bw, boardH + bw);
+        // Bottom floor
+        ctx.fillRect(ox - bw, oy + boardH, boardW + bw * 2, bw);
+
+        // Inner edge highlight
+        ctx.fillStyle = '#DCDCDC';
+        ctx.fillRect(ox - bw, oy, bw * 0.4, boardH + bw);
+        ctx.fillRect(ox - bw, oy + boardH, boardW + bw * 2, bw * 0.4);
+
+        // Inner edge shadow
+        ctx.fillStyle = '#787878';
+        ctx.fillRect(ox + boardW + bw * 0.6, oy, bw * 0.4, boardH + bw);
+        ctx.fillRect(ox - bw, oy + boardH + bw * 0.6, boardW + bw * 2, bw * 0.4);
 
         // Draw grid lines (subtle)
         ctx.strokeStyle = '#1a1a1a';
         ctx.lineWidth = 0.5;
         for (let r = 0; r <= this.ROWS; r++) {
             ctx.beginPath();
-            ctx.moveTo(0, r * cs);
-            ctx.lineTo(this.COLS * cs, r * cs);
+            ctx.moveTo(ox, oy + r * cs);
+            ctx.lineTo(ox + boardW, oy + r * cs);
             ctx.stroke();
         }
         for (let c = 0; c <= this.COLS; c++) {
             ctx.beginPath();
-            ctx.moveTo(c * cs, 0);
-            ctx.lineTo(c * cs, this.ROWS * cs);
+            ctx.moveTo(ox + c * cs, oy);
+            ctx.lineTo(ox + c * cs, oy + boardH);
             ctx.stroke();
         }
 
@@ -489,7 +522,7 @@ class TetrisEngine {
         for (let r = this.HIDDEN_ROWS; r < this.TOTAL_ROWS; r++) {
             for (let c = 0; c < this.COLS; c++) {
                 if (this.board[r][c]) {
-                    this.drawBlock(ctx, c, r - this.HIDDEN_ROWS, this.board[r][c]);
+                    this.drawBlock(ctx, c, r - this.HIDDEN_ROWS, this.board[r][c], ox, oy, cs);
                 }
             }
         }
@@ -497,16 +530,15 @@ class TetrisEngine {
         // NES line clear animation: columns clear from center outward
         if (this.lineClearing) {
             const progress = 1 - (this.lineClearFrames / this.LINE_CLEAR_FRAMES);
-            const colsCleared = Math.floor(progress * (this.COLS / 2)); // 0 to 5
+            const colsCleared = Math.floor(progress * (this.COLS / 2));
             for (const row of this.clearingLines) {
                 const drawY = row - this.HIDDEN_ROWS;
-                // Clear from center outward
                 for (let i = 0; i < colsCleared; i++) {
                     const leftCol = (this.COLS / 2) - 1 - i;
                     const rightCol = (this.COLS / 2) + i;
                     ctx.fillStyle = '#0C0C0C';
-                    ctx.fillRect(leftCol * cs, drawY * cs, cs, cs);
-                    ctx.fillRect(rightCol * cs, drawY * cs, cs, cs);
+                    ctx.fillRect(ox + leftCol * cs, oy + drawY * cs, cs, cs);
+                    ctx.fillRect(ox + rightCol * cs, oy + drawY * cs, cs, cs);
                 }
             }
         }
@@ -516,37 +548,37 @@ class TetrisEngine {
             const color = this.PIECES[this.currentPiece].color;
             const blocks = this.getBlocks(this.pieceX, this.pieceY, this.rotation);
 
-            // NES Tetris has no ghost piece — active piece only
             for (const [x, y] of blocks) {
                 if (y >= this.HIDDEN_ROWS) {
-                    this.drawBlock(ctx, x, y - this.HIDDEN_ROWS, color);
+                    this.drawBlock(ctx, x, y - this.HIDDEN_ROWS, color, ox, oy, cs);
                 }
             }
         }
 
         // Draw next piece preview
         if (nextCtx && this.nextPiece) {
+            const nw = nextCtx.canvas.width;
+            const nh = nextCtx.canvas.height;
             nextCtx.fillStyle = '#000';
-            nextCtx.fillRect(0, 0, 80, 80);
+            nextCtx.fillRect(0, 0, nw, nh);
             const piece = this.PIECES[this.nextPiece];
             const blocks = piece.rotations[0];
-            // Center the preview
+            const pcs = Math.min(nw / 5, nh / 3);
             const minX = Math.min(...blocks.map(b => b[0]));
             const maxX = Math.max(...blocks.map(b => b[0]));
             const minY = Math.min(...blocks.map(b => b[1]));
             const maxY = Math.max(...blocks.map(b => b[1]));
-            const pw = (maxX - minX + 1) * cs;
-            const ph = (maxY - minY + 1) * cs;
-            const ox = (80 - pw) / 2 - minX * cs;
-            const oy = (80 - ph) / 2 - minY * cs;
+            const pw = (maxX - minX + 1) * pcs;
+            const ph = (maxY - minY + 1) * pcs;
+            const nox = (nw - pw) / 2 - minX * pcs;
+            const noy = (nh - ph) / 2 - minY * pcs;
             for (const [dx, dy] of blocks) {
-                this.drawBlock(nextCtx, dx, dy, piece.color, ox, oy);
+                this.drawBlock(nextCtx, dx, dy, piece.color, nox, noy, pcs);
             }
         }
     }
 
-    drawBlock(ctx, x, y, color, ox = 0, oy = 0) {
-        const cs = this.CELL_SIZE;
+    drawBlock(ctx, x, y, color, ox = 0, oy = 0, cs = this.CELL_SIZE) {
         const px = x * cs + ox;
         const py = y * cs + oy;
 
