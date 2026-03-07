@@ -347,6 +347,16 @@ body {
     text-shadow: 2px 2px 0 #600;
 }
 
+.mario2-art {
+    color: #E04040;
+    text-shadow: 2px 2px 0 #800;
+}
+
+.mario3-art {
+    color: #F08030;
+    text-shadow: 2px 2px 0 #804000;
+}
+
 .mario-player-select {
     display: none;
     flex-direction: column;
