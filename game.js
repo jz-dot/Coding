@@ -182,7 +182,7 @@
             document.querySelector('.right-panel').style.display = 'none';
         } else {
             canvas.width = 200;
-            canvas.height = 360;
+            canvas.height = 400;
             canvas.style.width = '';
             canvas.style.height = '';
             layout.classList.remove('mario-mode');

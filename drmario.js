@@ -547,15 +547,17 @@ class DrMarioEngine {
     render(ctx, nextCtx) {
         const cs = this.CELL_SIZE;
 
-        // Adjust cell size to fit the 10x18 canvas area (200x360)
+        // Adjust cell size to fit the canvas area
         // Dr. Mario is 8x16, so we scale up
-        const drawCS = Math.min(200 / this.COLS, 360 / this.ROWS);
-        const offsetX = (200 - this.COLS * drawCS) / 2;
-        const offsetY = (360 - this.ROWS * drawCS) / 2;
+        const cw = ctx.canvas.width;
+        const ch = ctx.canvas.height;
+        const drawCS = Math.min(cw / this.COLS, ch / this.ROWS);
+        const offsetX = (cw - this.COLS * drawCS) / 2;
+        const offsetY = (ch - this.ROWS * drawCS) / 2;
 
         // Clear
         ctx.fillStyle = '#0C0C0C';
-        ctx.fillRect(0, 0, 200, 360);
+        ctx.fillRect(0, 0, cw, ch);
 
         // Draw bottle outline
         ctx.strokeStyle = '#888';

@@ -275,9 +275,9 @@ body {
 .game-layout {
     display: flex;
     justify-content: center;
-    align-items: flex-start;
-    gap: 8px;
-    min-height: calc(100vh - 44px);
+    align-items: stretch;
+    gap: 16px;
+    height: calc(100vh - 44px);
     padding-top: 8px;
 }
 
@@ -336,6 +336,11 @@ body {
 #game-canvas {
     display: block;
     background: #0C0C0C;
+    height: calc(100vh - 60px);
+    width: auto;
+    aspect-ratio: 200 / 400;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
 }
 
 #next-canvas {
@@ -440,10 +445,10 @@ body {
 }
 
 .game-layout.mario-mode #game-canvas {
-    width: 90vw;
-    max-width: 800px;
-    height: auto;
+    height: calc(100vh - 60px);
+    width: auto;
     aspect-ratio: 256 / 240;
+    max-width: 95vw;
     image-rendering: pixelated;
     image-rendering: crisp-edges;
 }
@@ -466,14 +471,13 @@ body {
 /* Responsive */
 @media (max-width: 640px) {
     .side-panel {
-        min-width: 90px;
+        min-width: 70px;
     }
     .stat-value {
-        font-size: 10px;
+        font-size: 9px;
     }
-    #game-canvas {
-        width: 160px;
-        height: 288px;
+    .stat-label {
+        font-size: 7px;
     }
     .controls-hint {
         font-size: 6px;
