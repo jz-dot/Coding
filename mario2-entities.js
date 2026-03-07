@@ -143,7 +143,7 @@ class Snifit extends SMB2Entity {
     constructor(x, y, opts) {
         super('snifit', x, y);
         this.isEnemy = true;
-        this.canBePickedUp = true;
+        this.canBePickedUp = false; // NES SMB2: Snifits can't be picked up
         this.canBeStoodOn = true;
         this.isDangerous = true;
         this.shootTimer = 120;

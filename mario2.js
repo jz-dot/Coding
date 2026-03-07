@@ -23,7 +23,7 @@ class SuperMario2Engine {
             0: { name: 'ASHIO', jump: -4.5, speed: 1.8, pull: 12, float: 0 },       // Balanced
             1: { name: 'AIDIO', jump: -5.5, speed: 1.6, pull: 14, float: 0 },       // High jump
             2: { name: 'AVA',   jump: -4.0, speed: 1.6, pull: 16, float: 90 },      // Float
-            3: { name: 'TOAD',  jump: -3.8, speed: 2.0, pull: 6,  float: 0 },       // Fast pull
+            3: { name: 'TOAD',  jump: -4.2, speed: 2.4, pull: 6,  float: 0 },       // Fast pull & speed
         };
 
         this.reset();
